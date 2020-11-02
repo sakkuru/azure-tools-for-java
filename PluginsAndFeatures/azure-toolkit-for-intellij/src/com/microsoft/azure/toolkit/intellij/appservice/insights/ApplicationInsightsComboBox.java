@@ -19,22 +19,25 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.microsoft.azure.toolkit.intellij.function;
+package com.microsoft.azure.toolkit.intellij.appservice.insights;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.ui.components.fields.ExtendableTextComponent;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.toolkit.intellij.common.AzureComboBox;
+import com.microsoft.azure.toolkit.lib.appservice.ApplicationInsightsConfig;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.intellij.runner.functions.component.CreateApplicationInsightsDialog;
 import com.microsoft.tooling.msservices.helpers.azure.sdk.AzureSDKManager;
+import org.apache.commons.collections.ListUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class ApplicationInsightsComboBox extends AzureComboBox<ApplicationInsightsModel> {
+public class ApplicationInsightsComboBox extends AzureComboBox<ApplicationInsightsConfig> {
 
     private Subscription subscription;
 
@@ -50,13 +53,26 @@ public class ApplicationInsightsComboBox extends AzureComboBox<ApplicationInsigh
         this.refreshItems();
     }
 
+    @Override
+    public void setValue(final ApplicationInsightsConfig insightsConfig) {
+        if (insightsConfig != null && insightsConfig.isNewCreate() && !getItems().contains(insightsConfig)) {
+            addItem(insightsConfig);
+        }
+        super.setValue(insightsConfig);
+    }
+
     @NotNull
     @Override
-    protected List<? extends ApplicationInsightsModel> loadItems() throws Exception {
-        return AzureSDKManager.getInsightsResources(subscription.subscriptionId())
-                .stream()
-                .map(ApplicationInsightsModel::new)
-                .collect(Collectors.toList());
+    protected List<? extends ApplicationInsightsConfig> loadItems() throws Exception {
+        final List<ApplicationInsightsConfig> newItems =
+                getItems().stream().filter(item -> item.isNewCreate()).collect(Collectors.toList());
+        final List<ApplicationInsightsConfig> existingItems =
+                subscription == null ? Collections.EMPTY_LIST :
+                AzureSDKManager.getInsightsResources(subscription.subscriptionId())
+                               .stream()
+                               .map(ApplicationInsightsConfig::new)
+                               .collect(Collectors.toList());
+        return ListUtils.union(newItems, existingItems);
     }
 
     @Nullable
@@ -68,19 +84,20 @@ public class ApplicationInsightsComboBox extends AzureComboBox<ApplicationInsigh
 
     @Override
     protected String getItemText(final Object item) {
-        if (!(item instanceof ApplicationInsightsModel)) {
+        if (!(item instanceof ApplicationInsightsConfig)) {
             return EMPTY_ITEM;
         }
-        final ApplicationInsightsModel model = (ApplicationInsightsModel) item;
-        return ((ApplicationInsightsModel) item).isNewCreate() ? String.format("(New) %s", model.getName()) : model.getName();
+        final ApplicationInsightsConfig model = (ApplicationInsightsConfig) item;
+        return ((ApplicationInsightsConfig) item).isNewCreate() ? String.format("(New) %s", model.getName()) : model.getName();
     }
 
     private void onCreateApplicationInsights() {
         final CreateApplicationInsightsDialog dialog = new CreateApplicationInsightsDialog();
         dialog.pack();
         if (dialog.showAndGet()) {
-            final ApplicationInsightsModel model = ApplicationInsightsModel.builder().name(dialog.getApplicationInsightsName()).build();
-            setValue(model);
+            ApplicationInsightsConfig config = ApplicationInsightsConfig.builder().newCreate(true).name(dialog.getApplicationInsightsName()).build();
+            addItem(config);
+            setSelectedItem(config);
         }
     }
 }

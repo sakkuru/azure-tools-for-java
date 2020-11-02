@@ -19,7 +19,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.microsoft.azure.toolkit.intellij.function;
+package com.microsoft.azure.toolkit.lib.appservice;
 
 import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
 import lombok.Data;
@@ -27,18 +27,18 @@ import lombok.experimental.SuperBuilder;
 
 @Data
 @SuperBuilder
-public class ApplicationInsightsModel {
+public class ApplicationInsightsConfig {
     private boolean newCreate;
     private String name;
     private String instrumentationKey;
     private ApplicationInsightsComponent component;
 
-    public ApplicationInsightsModel(String name) {
+    public ApplicationInsightsConfig(String name) {
         this.newCreate = true;
         this.name = name;
     }
 
-    public ApplicationInsightsModel(ApplicationInsightsComponent component) {
+    public ApplicationInsightsConfig(ApplicationInsightsComponent component) {
         this.newCreate = false;
         this.name = component.name();
         this.instrumentationKey = component.instrumentationKey();

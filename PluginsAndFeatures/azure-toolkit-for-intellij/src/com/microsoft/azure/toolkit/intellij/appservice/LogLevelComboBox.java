@@ -20,17 +20,20 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.toolkit.lib.function;
+package com.microsoft.azure.toolkit.intellij.appservice;
 
-import com.microsoft.azure.toolkit.lib.appservice.AppServiceConfig;
-import com.microsoft.azure.toolkit.lib.appservice.MonitorConfig;
-import lombok.Builder;
-import lombok.Data;
-import lombok.experimental.SuperBuilder;
+import com.microsoft.azure.management.appservice.LogLevel;
+import com.microsoft.azure.toolkit.intellij.common.AzureComboBox;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
-@Data
-@SuperBuilder
-public class FunctionAppConfig extends AppServiceConfig {
-    @Builder.Default
-    private MonitorConfig monitorConfig = MonitorConfig.builder().build();
+import java.util.Arrays;
+import java.util.List;
+
+public class LogLevelComboBox extends AzureComboBox<LogLevel> {
+
+    @NotNull
+    @Override
+    protected List<? extends LogLevel> loadItems() throws Exception {
+        return Arrays.asList(LogLevel.ERROR, LogLevel.WARNING, LogLevel.INFORMATION, LogLevel.VERBOSE);
+    }
 }
