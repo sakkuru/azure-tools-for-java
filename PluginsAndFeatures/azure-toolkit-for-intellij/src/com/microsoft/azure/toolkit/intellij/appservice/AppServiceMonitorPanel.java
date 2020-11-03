@@ -62,6 +62,7 @@ public class AppServiceMonitorPanel extends JPanel implements AzureFormPanel<Mon
     private IntegerTextField txtQuota;
     private IntegerTextField txtRetention;
     private LogLevelComboBox cbLogLevel;
+    private JLabel lblApplicationLog;
 
     private Project project;
 
@@ -73,31 +74,35 @@ public class AppServiceMonitorPanel extends JPanel implements AzureFormPanel<Mon
     public void setApplicationInsightsVisible(boolean visible) {
         titleApplicationInsights.setVisible(visible);
         lblInsightsEnable.setVisible(visible);
+        lblApplicationInsights.setVisible(visible);
+        applicationInsightsComboBox.setVisible(visible);
         rdoEnableAI.setVisible(visible);
         rdoDisableAI.setVisible(visible);
         rdoEnableAI.setSelected(visible);
     }
 
     public void setAppServiceLogVisible(boolean visible) {
-        titleAppServiceLog.setVisible(visible);
         setApplicationInsightsVisible(visible);
         setWebServerLogVisible(visible);
+        titleAppServiceLog.setVisible(visible);
     }
 
     public void setApplicationLogVisible(boolean visible) {
+        lblApplicationLog.setVisible(visible);
         rdoEnableApplicationLog.setVisible(visible);
         rdoDisableApplicationLog.setVisible(visible);
         pnlApplicationLog.setVisible(visible);
-        lblApplicationInsights.setVisible(visible);
         rdoEnableApplicationLog.setSelected(visible);
+        titleAppServiceLog.setVisible(lblApplicationLog.isVisible() || lblWebServerLog.isVisible());
     }
 
     public void setWebServerLogVisible(boolean visible) {
+        lblWebServerLog.setVisible(visible);
         rdoEnableWebServerLog.setVisible(visible);
         rdoDisableWebServerLog.setVisible(visible);
         pnlWebServerLog.setVisible(visible);
-        lblWebServerLog.setVisible(visible);
         rdoEnableWebServerLog.setSelected(visible);
+        titleAppServiceLog.setVisible(lblApplicationLog.isVisible() || lblWebServerLog.isVisible());
     }
 
     @Override
@@ -115,7 +120,7 @@ public class AppServiceMonitorPanel extends JPanel implements AzureFormPanel<Mon
                 config.setEnableDetailedErrorMessage(rdoEnableDetailError.isSelected());
                 config.setEnableFailedRequestTracing(rdoEnableFailedRequest.isSelected());
             }
-            if (lblApplicationInsights.isVisible()) {
+            if (lblApplicationLog.isVisible()) {
                 config.setEnableApplicationLog(rdoEnableApplicationLog.isSelected());
                 config.setApplicationLogLevel(cbLogLevel.getValue());
             }
@@ -209,6 +214,7 @@ public class AppServiceMonitorPanel extends JPanel implements AzureFormPanel<Mon
     private void toggleWebServerLog(boolean enable) {
         pnlWebServerLog.setVisible(enable);
         txtQuota.setRequired(enable);
+        txtRetention.setRequired(enable);
     }
 
     private void toggleApplicationLog(boolean enable) {

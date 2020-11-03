@@ -20,45 +20,35 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.toolkit.intellij.function;
+package com.microsoft.azure.toolkit.intellij.webapp;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.DocumentAdapter;
 import com.microsoft.azure.management.appservice.OperatingSystem;
 import com.microsoft.azure.management.appservice.PricingTier;
 import com.microsoft.azure.toolkit.intellij.appservice.AppServiceInfoAdvancedPanel;
 import com.microsoft.azure.toolkit.intellij.appservice.AppServiceMonitorPanel;
-import com.microsoft.azure.toolkit.intellij.appservice.insights.ApplicationInsightsComboBox;
 import com.microsoft.azure.toolkit.intellij.common.AzureFormPanel;
-import com.microsoft.azure.toolkit.lib.appservice.ApplicationInsightsConfig;
 import com.microsoft.azure.toolkit.lib.appservice.MonitorConfig;
 import com.microsoft.azure.toolkit.lib.appservice.Platform;
 import com.microsoft.azure.toolkit.lib.common.form.AzureFormInput;
-import com.microsoft.azure.toolkit.lib.function.FunctionAppConfig;
-import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.core.mvp.model.function.AzureFunctionMvpModel;
+import com.microsoft.azure.toolkit.lib.webapp.WebAppConfig;
+import com.microsoft.azuretools.core.mvp.model.AzureMvpModel;
 import org.apache.commons.collections.ListUtils;
 
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import java.util.Arrays;
 import java.util.List;
 
-public class FunctionAppConfigFormPanelAdvance extends JPanel implements AzureFormPanel<FunctionAppConfig> {
+public class WebAppConfigFormPanelAdvance extends JPanel implements AzureFormPanel<WebAppConfig> {
     private JTabbedPane tabPane;
     private JPanel pnlRoot;
     private Project project;
-    private AppServiceInfoAdvancedPanel<FunctionAppConfig> appServiceConfigPanelAdvanced;
+    private AppServiceInfoAdvancedPanel<WebAppConfig> appServiceConfigPanelAdvanced;
     private AppServiceMonitorPanel appServiceMonitorPanel;
     private JPanel pnlMonitoring;
     private JPanel pnlAppService;
 
-    private ApplicationInsightsConfig insightsConfig;
-
-    public FunctionAppConfigFormPanelAdvance(final Project project) {
+    public WebAppConfigFormPanelAdvance(final Project project) {
         this.project = project;
-        $$$setupUI$$$(); // tell IntelliJ to call createUIComponents() here.
-        this.init();
     }
 
     @Override
@@ -67,14 +57,14 @@ public class FunctionAppConfigFormPanelAdvance extends JPanel implements AzureFo
     }
 
     @Override
-    public FunctionAppConfig getData() {
-        final FunctionAppConfig data = appServiceConfigPanelAdvanced.getData();
+    public WebAppConfig getData() {
+        final WebAppConfig data = appServiceConfigPanelAdvanced.getData();
         data.setMonitorConfig(appServiceMonitorPanel.getData());
         return data;
     }
 
     @Override
-    public void setData(final FunctionAppConfig data) {
+    public void setData(final WebAppConfig data) {
         appServiceConfigPanelAdvanced.setData(data);
         appServiceMonitorPanel.setData(data.getMonitorConfig());
     }
@@ -84,42 +74,28 @@ public class FunctionAppConfigFormPanelAdvance extends JPanel implements AzureFo
         return ListUtils.union(appServiceConfigPanelAdvanced.getInputs(), appServiceMonitorPanel.getInputs());
     }
 
-    private void init() {
-        appServiceConfigPanelAdvanced.getTextName().getDocument().addDocumentListener(new DocumentAdapter() {
-            @Override
-            protected void textChanged(@NotNull final DocumentEvent documentEvent) {
-                // ai name pattern is the subset of function name pattern, so no need to validate the ai instance name
-                insightsConfig.setName(appServiceConfigPanelAdvanced.getTextName().getValue());
-                ApplicationInsightsComboBox insightsComboBox = appServiceMonitorPanel.getApplicationInsightsComboBox();
-                insightsComboBox.removeItem(insightsConfig);
-                insightsComboBox.setValue(insightsConfig);
-            }
-        });
+    public void setDeploymentVisible(final boolean visible) {
+        this.appServiceConfigPanelAdvanced.setDeploymentVisible(visible);
+    }
+
+    public void setValidPricingTier(final List<PricingTier> validPricingTiers, final PricingTier defaultPricingTier) {
+        this.appServiceConfigPanelAdvanced.setValidPricingTier(validPricingTiers, defaultPricingTier);
     }
 
     private void createUIComponents() {
         // TODO: place custom component creation code here
-        appServiceConfigPanelAdvanced = new AppServiceInfoAdvancedPanel(project, () -> FunctionAppConfig.builder().build());
-        appServiceConfigPanelAdvanced.setValidPlatform(Arrays.asList(Platform.AzureFunction.values()));
+        appServiceConfigPanelAdvanced = new AppServiceInfoAdvancedPanel(project, () -> WebAppConfig.builder().build());
         try {
-            final List<PricingTier> validPricing = AzureFunctionMvpModel.getInstance().listFunctionPricingTier();
-            appServiceConfigPanelAdvanced.setValidPricingTier(validPricing, AzureFunctionMvpModel.CONSUMPTION_PRICING_TIER);
+            final List<PricingTier> validPricing = AzureMvpModel.getInstance().listPricingTier();
+            appServiceConfigPanelAdvanced.setValidPricingTier(validPricing, WebAppConfig.DEFAULT_PRICING_TIER);
         } catch (IllegalAccessException e) {
             // swallow exceptions while load pricing tier
         }
-        // Function does not support file deployment
-        appServiceConfigPanelAdvanced.setDeploymentVisible(false);
-        insightsConfig = ApplicationInsightsConfig.builder().newCreate(true)
-                                                  .name(appServiceConfigPanelAdvanced.getTextName().getValue())
-                                                  .build();
 
         appServiceMonitorPanel = new AppServiceMonitorPanel(project);
-        appServiceMonitorPanel.setWebServerLogVisible(false);
-        appServiceMonitorPanel.setData(MonitorConfig.builder().applicationInsightsConfig(insightsConfig).build());
-
-        appServiceConfigPanelAdvanced.getSelectorSubscription().addActionListener(event -> {
-            appServiceMonitorPanel.getApplicationInsightsComboBox().setSubscription(appServiceConfigPanelAdvanced.getSelectorSubscription().getValue());
-        });
+        // Application Insights is not supported in Web App
+        appServiceMonitorPanel.setApplicationInsightsVisible(false);
+        appServiceMonitorPanel.setData(MonitorConfig.builder().build());
 
         appServiceConfigPanelAdvanced.getSelectorPlatform().addActionListener(event -> {
             final Platform platform = appServiceConfigPanelAdvanced.getSelectorPlatform().getValue();
