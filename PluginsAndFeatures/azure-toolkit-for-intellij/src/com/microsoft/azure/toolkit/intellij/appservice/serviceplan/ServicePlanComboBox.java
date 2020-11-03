@@ -36,6 +36,7 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.core.mvp.model.webapp.AzureWebAppMvpModel;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,6 +124,7 @@ public class ServicePlanComboBox extends AzureComboBox<AppServicePlan> {
             if (Objects.nonNull(this.os)) {
                 stream = stream.filter(p -> p.operatingSystem() == this.os);
             }
+            stream = stream.sorted((first, second) -> StringUtils.compare(first.name(), second.name()));
             return stream.collect(Collectors.toList());
         }
         return plans;
