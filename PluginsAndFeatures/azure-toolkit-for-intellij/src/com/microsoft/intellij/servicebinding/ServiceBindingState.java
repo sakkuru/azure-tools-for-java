@@ -32,6 +32,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -64,5 +65,11 @@ public class ServiceBindingState implements PersistentStateComponent<ServiceBind
             return Collections.emptyList();
         }
         return serviceBindings.stream().map(InternalBindingInfo::toBindingInfo).collect(Collectors.toList());
+    }
+
+    public void removeByIds(Collection<String> idsToRemove) {
+        ServiceBindingState newServiceBindings = new ServiceBindingState();
+        newServiceBindings.serviceBindings.addAll(this.serviceBindings.stream().filter(d -> !idsToRemove.contains(d.getId())).collect(Collectors.toList()));
+        loadState(newServiceBindings);
     }
 }

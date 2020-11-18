@@ -22,25 +22,66 @@
 
 package com.microsoft.intellij.servicebinding;
 
+
+import com.intellij.ide.projectView.ProjectView;
+import com.intellij.openapi.components.ServiceManager;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectManager;
+import org.apache.commons.collections.CollectionUtils;
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-public enum ServiceBindingManager {
-    INSTANCE;
-    public static ServiceBindingManager getInstance() {
-        return INSTANCE;
+public class ServiceBindingManager {
+    private Project project;
+
+    private static Map<Project, ServiceBindingManager> map = new ConcurrentHashMap<>();
+
+    public static ServiceBindingManager getInstance(@NotNull Project project) {
+        return map.computeIfAbsent(project, (key) -> new ServiceBindingManager(project));
     }
 
-    private List<ServiceBindingInfo> serviceBindingList = new ArrayList<>();
-
-    public List<ServiceBindingInfo> listAll() {
-        return serviceBindingList;
+    public List<ServiceBindingInfo> getServiceBindings() {
+        ServiceBindingState state = ServiceManager.getService(project, ServiceBindingState.class).getState();
+        return state.getServiceBindingInfos();
     }
 
-    public <T extends ServiceBindingInfo> void addBinding(T binding) {
-        System.out.println("Start to binding service to your application. bindingInfo = " + binding);
-        this.serviceBindingList.add(binding);
+    public void addServiceBinding(ServiceBindingInfo binding) {
+        ServiceBindingState state = ServiceManager.getService(project, ServiceBindingState.class).getState();
+        state.addBindingInfo(binding);
+
+        ProjectView.getInstance(ProjectManager.getInstance().getDefaultProject()).refresh();
+    }
+
+    public void deleteServiceBindings(Collection<ServiceBindingInfo> toDeleteList) {
+        if (CollectionUtils.isEmpty(toDeleteList)) {
+            return;
+        }
+        ServiceBindingState state = ServiceManager.getService(project, ServiceBindingState.class).getState();
+        List<ServiceBindingInfo> existingBindings = state.getServiceBindingInfos();
+        if (CollectionUtils.isEmpty(existingBindings)) {
+            return;
+        }
+        List<String> idsToDelete = toDeleteList.stream().map(ServiceBindingInfo::getId).collect(Collectors.toList());
+        Collection<String> idsToRemove = new ArrayList<>();
+        for (ServiceBindingInfo bindingInfo : existingBindings) {
+            if (idsToDelete.contains(bindingInfo.getId())) {
+                idsToRemove.add(bindingInfo.getId());
+            }
+        }
+        if (CollectionUtils.isEmpty(idsToRemove)) {
+            return;
+        }
+        state.removeByIds(idsToRemove);
+        ProjectView.getInstance(ProjectManager.getInstance().getDefaultProject()).refresh();
+    }
+
+    private ServiceBindingManager(Project project) {
+        this.project = project;
     }
 }
-
-

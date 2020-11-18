@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellij.util.xmlb.annotations.Attribute;
 import com.intellij.util.xmlb.annotations.Text;
 import com.microsoft.azuretools.utils.JsonUtils;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -35,9 +36,16 @@ import java.util.Map;
 
 @Setter
 @Getter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class InternalBindingInfo {
     @Attribute("className")
+    @EqualsAndHashCode.Include
     private String className;
+
+    @Attribute("id")
+    @EqualsAndHashCode.Include
+    private String id;
+
     @Text
     private String jsonpText;
 
@@ -47,6 +55,7 @@ public class InternalBindingInfo {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> props = mapper.convertValue(info, Map.class);
         internalBindingInfo.setJsonpText(JsonUtils.getGson().toJson(props));
+        internalBindingInfo.setId(info.getId());
         return internalBindingInfo;
     }
 

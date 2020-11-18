@@ -84,6 +84,7 @@
                          id="com.microsoft.intellij.AzureConfigurable"
                          provider="com.microsoft.intellij.AzureConfigurableProvider"
                          dynamic="true"/>
+    <treeStructureProvider implementation="com.microsoft.intellij.servicebinding.projectview.ServiceBindingTreeStructureProvider"/>
     <projectService serviceInterface="com.microsoft.intellij.AzureSettings"
                     serviceImplementation="com.microsoft.intellij.AzureSettings"/>
     <projectService serviceImplementation="com.microsoft.intellij.servicebinding.ServiceBindingState"/>
