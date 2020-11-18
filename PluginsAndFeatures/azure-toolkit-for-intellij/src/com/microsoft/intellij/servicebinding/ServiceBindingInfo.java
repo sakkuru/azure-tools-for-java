@@ -31,7 +31,7 @@ import lombok.Setter;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ServiceBindingInfo {
+public abstract class ServiceBindingInfo {
 
     private String id;
     private String resourceId;
