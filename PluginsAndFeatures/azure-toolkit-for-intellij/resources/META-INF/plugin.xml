@@ -301,6 +301,15 @@
       <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
     </action>
 
+    <group id="Actions.BindServicePopupGroup" text="Bind Service" description="Bind Service" icon="/icons/azure.png" popup="true" class="com.microsoft.intellij.actions.BindServicePopupGroup">
+      <action id="Actions.BindMySQLAction" text="Bind MySQL Service" description="Bind MySQL Service" icon="/icons/PublishWebApp_16.png"
+              class="com.microsoft.intellij.actions.BindMySQLAction">
+      </action>
+      <action id="Actions.EditMySQLAction" text="Edit MySQL Dependency" description="Edit MySQL Dependency" icon="/icons/PublishWebApp_16.png"
+              class="com.microsoft.intellij.actions.EditMySQLAction">
+      </action>
+    </group>
+
     <group id="AzurePopupGroup" text="Azure" description="Azure" icon="/icons/azure.png" popup="true" class="com.microsoft.intellij.actions.AzurePopupGroup">
       <reference ref="Actions.RunFunction"/>
       <reference ref="Actions.DeployFunction"/>
@@ -317,6 +326,7 @@
       <separator/>
       <reference ref="Actions.ApplicationInsightsAction"/>
       <reference ref="Actions.LibraryConfigurationAction"/>
+      <reference ref="Actions.BindServicePopupGroup"/>
     </group>
 
     <group id="AzureToolbarGroup" text="Azure" description="Azure">
