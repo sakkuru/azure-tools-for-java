@@ -38,6 +38,10 @@ public abstract class ServiceBindingInfo {
     private String name;
     private BindingType bindingType;
 
+    public String displayName() {
+        return this.name;
+    }
+
     enum BindingType {
         MySQL;
     }
