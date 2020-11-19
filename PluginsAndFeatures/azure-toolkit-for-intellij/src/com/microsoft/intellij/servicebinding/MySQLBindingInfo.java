@@ -49,4 +49,9 @@ public class MySQLBindingInfo extends ServiceBindingInfo {
     public MySQLBindingInfo(String resourceId, String name) {
         super(UUID.randomUUID().toString(), resourceId, name, BindingType.MySQL);
     }
+
+    @Override
+    public String displayName() {
+        return username + "@" + getName() + "/" + database;
+    }
 }
