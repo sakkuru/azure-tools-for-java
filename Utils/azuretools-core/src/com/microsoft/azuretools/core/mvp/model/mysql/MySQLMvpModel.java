@@ -53,7 +53,7 @@ public class MySQLMvpModel {
 
     public static List<Server> listAllMySQLServers() {
         final List<Server> clusters = new ArrayList<>();
-        List<Subscription> subs = AzureMvpModel.getInstance().getSelectedSubscriptions();
+        final List<Subscription> subs = AzureMvpModel.getInstance().getSelectedSubscriptions();
         if (subs.size() == 0) {
             return clusters;
         }
@@ -117,7 +117,7 @@ public class MySQLMvpModel {
             if (StringUtils.isBlank(publicIp)) {
                 return false;
             }
-            List<FirewallRuleInner> firewallRules = MySQLMvpModel2.listFirewallRules(subscriptionId, server);
+            final List<FirewallRuleInner> firewallRules = MySQLMvpModel2.listFirewallRules(subscriptionId, server);
             return firewallRules.stream()
                     .filter(e -> StringUtils.equals(publicIp, e.startIpAddress()) && StringUtils.equals(publicIp, e.endIpAddress())).count() > 0;
         } catch (IOException e) {
@@ -143,8 +143,8 @@ public class MySQLMvpModel {
     }
 
     public static boolean updateSSLEnforcement(final String subscriptionId, final Server server, final SslEnforcementEnum sslEnforcement) {
-        MySQLManager mySQLManager = AuthMethodManager.getInstance().getMySQLClient(subscriptionId);
-        ServerUpdateParameters parameters = new ServerUpdateParameters();
+        final MySQLManager mySQLManager = AuthMethodManager.getInstance().getMySQLClient(subscriptionId);
+        final ServerUpdateParameters parameters = new ServerUpdateParameters();
         parameters.withSslEnforcement(sslEnforcement);
         mySQLManager.servers().inner().update(server.resourceGroupName(), server.name(), parameters);
         return true;
