@@ -71,9 +71,9 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         "spring-cloud-starter-sleuth"
     };
     private static final List<DeploymentResourceStatus> DEPLOYMENT_PROCESSING_STATUS =
-            Arrays.asList(DeploymentResourceStatus.COMPILING,
-                          DeploymentResourceStatus.ALLOCATING,
-                          DeploymentResourceStatus.UPGRADING);
+        Arrays.asList(DeploymentResourceStatus.COMPILING,
+                      DeploymentResourceStatus.ALLOCATING,
+                      DeploymentResourceStatus.UPGRADING);
     private static final String JAR = "jar";
     private static final String MAIN_CLASS = "Main-Class";
     private static final String SPRING_BOOT_LIB = "Spring-Boot-Lib";
@@ -81,20 +81,20 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
     private static final String NOT_SPRING_BOOT_Artifact = "Artifact %s is not a spring-boot artifact.";
     private static final String DEPENDENCIES_IS_NOT_UPDATED = "Azure Spring Cloud dependencies are not updated.";
     private static final String MAIN_CLASS_NOT_FOUND =
-            "Main class cannot be found in %s, which is required for spring cloud app.";
+        "Main class cannot be found in %s, which is required for spring cloud app.";
     private static final String AZURE_DEPENDENCIES_WARNING_TITLE =
-            "Azure dependencies are missing or incompatible";
+        "Azure dependencies are missing or incompatible";
     private static final String DEPENDENCY_WARNING = "Azure dependencies are missing or incompatible, you "
-            + "may update the dependencies by Azure -> Add Azure Spring Cloud dependency on project context menu.\n";
+        + "may update the dependencies by Azure -> Add Azure Spring Cloud dependency on project context menu.\n";
 
-    private final SpringCloudDeployConfiguration springCloudDeployConfiguration;
+    private final SpringCloudDeployConfiguration configuration;
 
     /**
      * Place to execute the Web App deployment task.
      */
     public SpringCloudDeploymentState(Project project, SpringCloudDeployConfiguration springCloudDeployConfiguration) {
         super(project);
-        this.springCloudDeployConfiguration = springCloudDeployConfiguration;
+        this.configuration = springCloudDeployConfiguration;
     }
 
     @Nullable
@@ -103,57 +103,63 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
             , @NotNull Map<String, String> telemetryMap) throws Exception {
         // prepare the jar to be deployed
         updateTelemetryMap(telemetryMap);
-        if (StringUtils.isEmpty(springCloudDeployConfiguration.getArtifactIdentifier())) {
+        if (StringUtils.isEmpty(configuration.getArtifactIdentifier())) {
             throw new AzureExecutionException("You must specify an artifact");
         }
 
         AzureArtifact artifact =
-                AzureArtifactManager.getInstance(project).getAzureArtifactById(springCloudDeployConfiguration.getArtifactIdentifier());
+            AzureArtifactManager.getInstance(project).getAzureArtifactById(configuration.getArtifactIdentifier());
         if (Objects.isNull(artifact)) {
             throw new AzureExecutionException(String.format("The artifact '%s' you selected doesn't exists",
-                                                            springCloudDeployConfiguration.getArtifactIdentifier()));
+                                                            configuration.getArtifactIdentifier()));
         }
         String finalJarName = AzureArtifactManager.getInstance(project).getFileForDeployment(artifact);
         if (!Files.exists(Paths.get(finalJarName))) {
-            throw new AzureExecutionException(String.format("File '%s' cannot be found.",
-                                                            finalJarName));
+            throw new AzureExecutionException(String.format("File '%s' cannot be found.", finalJarName));
         }
         validateSpringCloudAppArtifact(finalJarName);
-        // get or create spring cloud app
-        setText(processHandler, "Creating/Updating spring cloud app...");
-        final AppResourceInner appResourceInner = SpringCloudUtils.createOrUpdateSpringCloudApp(springCloudDeployConfiguration);
-        String clusterId = springCloudDeployConfiguration.getClusterId();
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, appResourceInner, null);
-        setText(processHandler, "Create/Update spring cloud app succeed.");
+        AppResourceInner app = SpringCloudUtils.getApp(configuration);
+        final String clusterId = configuration.getClusterId();
+        // Create new App if not exist
+        if (Objects.isNull(app)) {
+            setText(processHandler, String.format("Creating spring cloud app [%s]...", configuration.getAppName()));
+            app = SpringCloudUtils.createApp(configuration);
+            setText(processHandler, String.format("Successfully created spring cloud app [%s]", configuration.getAppName()));
+            SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app, null);
+        }
+
         // upload artifact to correspond storage
         setText(processHandler, "Uploading artifact to storage...");
-        final UserSourceInfo userSourceInfo = SpringCloudUtils.deployArtifact(springCloudDeployConfiguration, finalJarName);
+        final UserSourceInfo userSourceInfo = SpringCloudUtils.uploadArtifact(configuration, finalJarName);
         setText(processHandler, "Upload artifact succeed.");
+
         // get or create active deployment
-        setText(processHandler, "Creating/Updating deployment...");
-        final DeploymentResourceInner deploymentResourceInner = SpringCloudUtils.createOrUpdateDeployment(
-                springCloudDeployConfiguration,
-                userSourceInfo);
-        setText(processHandler, "Create/Update deployment succeed.");
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, appResourceInner
-                , deploymentResourceInner);
+        DeploymentResourceInner deployment = SpringCloudUtils.getActiveDeployment(app, configuration);
+        final boolean toCreateNewDeployment = deployment == null;
+        if (toCreateNewDeployment) {
+            setText(processHandler, "Creating deployment...");
+            deployment = SpringCloudUtils.createDeployment(configuration, userSourceInfo);
+            setText(processHandler, "Successfully created deployment.");
+        } else {
+            setText(processHandler, "Updating deployment...");
+            deployment = SpringCloudUtils.updateDeployment(deployment, configuration, userSourceInfo);
+            setText(processHandler, "Successfully updated deployment.");
+        }
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app, deployment);
         // update spring cloud properties (enable public access)
         setText(processHandler, "Activating deployment...");
-        AppResourceInner newApps = SpringCloudUtils.activeDeployment(appResourceInner,
-                                                                     deploymentResourceInner,
-                                                                     springCloudDeployConfiguration);
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, newApps, deploymentResourceInner);
-        AzureSpringCloudMvpModel.startApp(newApps.id(), newApps.properties().activeDeploymentName()).await();
+        SpringCloudUtils.updateApp(app, configuration);
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app, deployment);
+
         // Waiting until instances start
-        DeploymentResourceInner newDeploymentResourceInner = getDeploymentStatus(newApps.id(), processHandler);
+        DeploymentResourceInner newDeploymentResourceInner = getDeploymentStatus(app.id(), processHandler);
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app, newDeploymentResourceInner);
 
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, newApps, newDeploymentResourceInner);
-
-        if (newApps.properties().publicProperty()) {
-            getUrl(newApps.id(), processHandler);
+        if (app.properties().publicProperty()) {
+            getUrl(app.id(), processHandler);
         }
         setText(processHandler, "Deployment done.");
-        return newApps;
+        return app;
     }
 
     @Override
@@ -175,7 +181,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
 
     @Override
     protected void updateTelemetryMap(@NotNull Map<String, String> telemetryMap) {
-        telemetryMap.putAll(springCloudDeployConfiguration.getModel().getTelemetryProperties());
+        telemetryMap.putAll(configuration.getModel().getTelemetryProperties());
     }
 
     private void validateSpringCloudAppArtifact(String finalJar) throws AzureExecutionException, IOException {
@@ -204,7 +210,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
             }
         }
         final String dependencyPrompt = getDependenciesValidationPrompt(
-                missingDependencies, inCompatibleDependencies, springVersion);
+            missingDependencies, inCompatibleDependencies, springVersion);
         if (!inCompatibleDependencies.isEmpty()) {
             PluginUtil.showWarningNotificationProject(project, AZURE_DEPENDENCIES_WARNING_TITLE, dependencyPrompt);
         } else if (!missingDependencies.isEmpty()) {
@@ -232,14 +238,14 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         final List<JarEntry> jarEntries = Collections.list(jarEntryEnumeration);
         return jarEntries.stream()
                          .filter(jarEntry -> StringUtils.startsWith(jarEntry.getName(), libraryPath)
-                                 && StringUtils.equalsIgnoreCase(FilenameUtils.getExtension(jarEntry.getName()), JAR))
+                             && StringUtils.equalsIgnoreCase(FilenameUtils.getExtension(jarEntry.getName()), JAR))
                          .map(jarEntry -> {
                              String fileName = FilenameUtils.getBaseName(jarEntry.getName());
                              final int i = StringUtils.lastIndexOf(fileName, "-");
                              return (i > 0 && i < fileName.length() - 1) ?
                                     new String[]{
-                                            StringUtils.substring(fileName, 0, i),
-                                            StringUtils.substring(fileName, i + 1)
+                                        StringUtils.substring(fileName, 0, i),
+                                        StringUtils.substring(fileName, i + 1)
                                     } :
                                     new String[]{fileName, ""};
                          })
@@ -259,12 +265,12 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
 
     private DeploymentResourceInner getDeploymentStatus(String appId, RunProcessHandler processHandler) {
         try {
-            DeploymentResourceInner deploymentResourceInner =
-                    getResourceWithTimeout(() -> AzureSpringCloudMvpModel.getActiveDeploymentForApp(appId),
-                                           this::isDeploymentDone, GET_STATUS_TIMEOUT, TimeUnit.SECONDS);
+            DeploymentResourceInner deployment =
+                getResourceWithTimeout(() -> AzureSpringCloudMvpModel.getActiveDeploymentForApp(appId),
+                                       this::isDeploymentDone, GET_STATUS_TIMEOUT, TimeUnit.SECONDS);
             setText(processHandler,
-                    "Deployment done with status " + deploymentResourceInner.properties().status().toString());
-            return deploymentResourceInner;
+                    "Deployment done with status " + deployment.properties().status().toString());
+            return deployment;
         } catch (Exception e) {
             setText(processHandler, "Failed to get the deployment status, you may get the status in portal later.");
             return null;
@@ -277,8 +283,8 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
     }
 
     private static <T> T getResourceWithTimeout(SupplierWithIOException<T> consumer, Predicate<T> predicate,
-                                         int timeout, TimeUnit timeUnit)
-            throws InterruptedException, ExecutionException, TimeoutException {
+                                                int timeout, TimeUnit timeUnit)
+        throws InterruptedException, ExecutionException, TimeoutException {
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         final Future<T> future = executor.submit(() -> {
             try {
@@ -305,12 +311,12 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
                                            "UP" : "OUT_OF_SERVICE";
         final List<DeploymentInstance> instanceList = deploymentResource.properties().instances();
         final boolean isInstanceDeployed = !instanceList.stream()
-                .anyMatch(instance -> StringUtils.equalsIgnoreCase(instance.status(), "waiting") ||
-                        StringUtils.equalsIgnoreCase(instance.status(), "pending"));
+                                                        .anyMatch(instance -> StringUtils.equalsIgnoreCase(instance.status(), "waiting") ||
+                                                            StringUtils.equalsIgnoreCase(instance.status(), "pending"));
         final boolean isInstanceDiscovered =
-                instanceList.stream()
-                            .allMatch(instance -> StringUtils.equalsIgnoreCase(
-                                    instance.discoveryStatus(), finalDiscoverStatus));
+            instanceList.stream()
+                        .allMatch(instance -> StringUtils.equalsIgnoreCase(
+                            instance.discoveryStatus(), finalDiscoverStatus));
         return isInstanceDeployed && isInstanceDiscovered;
     }
 }
