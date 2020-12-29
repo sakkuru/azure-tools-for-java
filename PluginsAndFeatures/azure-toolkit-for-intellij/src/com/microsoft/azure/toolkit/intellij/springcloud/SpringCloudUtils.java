@@ -259,10 +259,10 @@ public class SpringCloudUtils {
         // As we can't set public policy to an app without active deployment
         if (StringUtils.isNotEmpty(properties.activeDeploymentName())) {
             result.withActiveDeploymentName(properties.activeDeploymentName());
-            result.withPublicProperty(configuration.isPublic());
         } else {
             result.withActiveDeploymentName(SpringCloudConstants.DEFAULT_DEPLOYMENT_NAME);
         }
+        result.withPublicProperty(configuration.isPublic());
         return result;
     }
 
