@@ -42,7 +42,7 @@ public class AzureOperationRef {
             return false;
         }
         final AzureOperationRef operation = (AzureOperationRef) obj;
-        return operation.getMethod() == this.method || Objects.equals(operation.getMethod(), this.getMethod());
+        return Objects.equals(operation.getMethod(), this.getMethod());
     }
 
     @Override
