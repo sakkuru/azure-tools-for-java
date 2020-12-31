@@ -44,7 +44,7 @@ public class AzureRxTaskManager {
         final Func1<Completable.OnSubscribe, Completable.OnSubscribe> oldCompletableCreateHooks = RxJavaHooks.getOnCompletableCreate();
         RxJavaHooks.setOnObservableCreate(onSubscribe -> {
             final AzureTaskContext.Node context = AzureTaskContext.current().derive();
-            final Observable.OnSubscribe<?> withClosure = (o) -> AzureTaskContext.run(() -> onSubscribe.call(o), context);
+            final Observable.OnSubscribe<?> withClosure = (subscriber) -> AzureTaskContext.run(() -> onSubscribe.call(subscriber), context);
             if (Objects.isNull(oldObservableCreateHooks)) {
                 return withClosure;
             }
@@ -52,7 +52,7 @@ public class AzureRxTaskManager {
         });
         RxJavaHooks.setOnCompletableCreate(onSubscribe -> {
             final AzureTaskContext.Node context = AzureTaskContext.current().derive();
-            final Completable.OnSubscribe withClosure = (o) -> AzureTaskContext.run(() -> onSubscribe.call(o), context);
+            final Completable.OnSubscribe withClosure = (subscriber) -> AzureTaskContext.run(() -> onSubscribe.call(subscriber), context);
             if (Objects.isNull(oldCompletableCreateHooks)) {
                 return withClosure;
             }
@@ -60,7 +60,7 @@ public class AzureRxTaskManager {
         });
         RxJavaHooks.setOnSingleCreate(onSubscribe -> {
             final AzureTaskContext.Node context = AzureTaskContext.current().derive();
-            final Single.OnSubscribe<?> withClosure = (o) -> AzureTaskContext.run(() -> onSubscribe.call(o), context);
+            final Single.OnSubscribe<?> withClosure = (subscriber) -> AzureTaskContext.run(() -> onSubscribe.call(subscriber), context);
             if (Objects.isNull(oldSingleCreateHooks)) {
                 return withClosure;
             }
