@@ -385,7 +385,7 @@ public class IDEHelperImpl implements IDEHelper {
         final OutputStream output = virtualFile.getOutputStream(null);
         final String failure = String.format("Can not open file %s. Try downloading it first and open it manually.", virtualFile.getName());
         final String title = String.format("Opening file %s...", virtualFile.getName());
-        final AzureTask<Void> task = new AzureTask<>(null, title, true, () -> {
+        final AzureTask<Void> task = new AzureTask<>(null, title, false, () -> {
             final ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
             indicator.setIndeterminate(true);
             indicator.setText2("Checking file existence");
@@ -497,7 +497,7 @@ public class IDEHelperImpl implements IDEHelper {
         final OutputStream output = new FileOutputStream(destFile);
         final Project project = (Project) context;
         final String title = String.format("Downloading file %s...", file.getName());
-        final AzureTask<Void> task = new AzureTask<>(project, title, true, () -> {
+        final AzureTask<Void> task = new AzureTask<>(project, title, false, () -> {
             ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
             AppServiceFileService
                 .forApp(file.getApp())

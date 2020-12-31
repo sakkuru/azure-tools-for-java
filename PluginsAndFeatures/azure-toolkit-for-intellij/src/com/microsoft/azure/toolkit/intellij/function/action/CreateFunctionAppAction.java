@@ -44,9 +44,11 @@ import com.microsoft.azuretools.utils.AzureUIRefreshCore;
 import com.microsoft.azuretools.utils.AzureUIRefreshEvent;
 import com.microsoft.intellij.util.AzureLoginHelper;
 import com.microsoft.tooling.msservices.helpers.Name;
+import com.microsoft.tooling.msservices.serviceexplorer.AzureActionEnum;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.function.FunctionModule;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Basicable;
 import rx.Single;
 
 import java.util.Objects;
@@ -55,7 +57,7 @@ import java.util.function.Consumer;
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
 @Name("Create Function App")
-public class CreateFunctionAppAction extends NodeActionListener {
+public class CreateFunctionAppAction extends NodeActionListener implements Basicable {
     private static final String NOTIFICATION_GROUP_ID = "Azure Plugin";
     private final FunctionAppService functionAppService;
     private final FunctionModule functionModule;
@@ -64,6 +66,11 @@ public class CreateFunctionAppAction extends NodeActionListener {
         super();
         this.functionModule = functionModule;
         this.functionAppService = FunctionAppService.getInstance();
+    }
+
+    @Override
+    public AzureActionEnum getAction() {
+        return AzureActionEnum.CREATE;
     }
 
     @Override
@@ -99,7 +106,7 @@ public class CreateFunctionAppAction extends NodeActionListener {
 
     @AzureOperation(value = "create function app", type = AzureOperation.Type.ACTION)
     private Single<FunctionApp> createFunctionApp(final FunctionAppConfig config) {
-        final AzureTask<FunctionApp> task = new AzureTask<>(null, message("function.create.task.title"), true, () -> {
+        final AzureTask<FunctionApp> task = new AzureTask<>(null, message("function.create.task.title"), false, () -> {
             final ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
             indicator.setIndeterminate(true);
             return functionAppService.createFunctionApp(config);

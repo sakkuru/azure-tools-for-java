@@ -34,7 +34,6 @@ import com.microsoft.azure.toolkit.lib.common.task.AzureTaskManager;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
-import com.microsoft.azuretools.ijidea.ui.ErrorWindow;
 import com.microsoft.azuretools.ijidea.ui.SubscriptionsDialog;
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
@@ -101,7 +100,7 @@ public class SelectSubscriptionsAction extends AzureAnAction {
 
     @AzureOperation(value = "load all available subscriptions from Azure", type = AzureOperation.Type.SERVICE)
     public static Observable<List<SubscriptionDetail>> loadSubscriptions(final SubscriptionManager subscriptionManager, Project project) {
-        return AzureTaskManager.getInstance().runInModal(new AzureTask<>(project, "Loading Subscriptions...", true, () -> {
+        return AzureTaskManager.getInstance().runInModal(new AzureTask<>(project, "Loading Subscriptions...", false, () -> {
             ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
             EventUtil.executeWithLog(TelemetryConstants.ACCOUNT, TelemetryConstants.GET_SUBSCRIPTIONS, (operation) -> {
                 return subscriptionManager.getSubscriptionDetails();

@@ -107,13 +107,6 @@ public class SubscriptionStep extends AzureWizardStep<VMWizardModel> implements 
         } catch (Exception ex) {
             DefaultLoader.getUIHelper().logError("An error occurred when trying to load Subscriptions\n\n" + ex.getMessage(), ex);
         }
-
-//            if (manager.authenticated()) {
-//                String upn = manager.getUserInfo().getUniqueName();
-//                userInfoLabel.setText("Signed in as: " + (upn.contains("#") ? upn.split("#")[1] : upn));
-//            } else {
-//                userInfoLabel.setText("");
-//            }
     }
 
     @Override

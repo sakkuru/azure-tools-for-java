@@ -48,9 +48,11 @@ import com.microsoft.azuretools.utils.WebAppUtils;
 import com.microsoft.intellij.runner.RunProcessHandler;
 import com.microsoft.intellij.util.AzureLoginHelper;
 import com.microsoft.tooling.msservices.helpers.Name;
+import com.microsoft.tooling.msservices.serviceexplorer.AzureActionEnum;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.WebAppModule;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Basicable;
 import rx.Single;
 
 import java.nio.file.Path;
@@ -60,7 +62,7 @@ import java.util.function.Consumer;
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
 @Name("Create Web App")
-public class CreateWebAppAction extends NodeActionListener {
+public class CreateWebAppAction extends NodeActionListener implements Basicable {
     private static final String NOTIFICATION_GROUP_ID = "Azure Plugin";
     private final WebAppService webappService;
     private final WebAppModule webappModule;
@@ -69,6 +71,11 @@ public class CreateWebAppAction extends NodeActionListener {
         super();
         this.webappModule = webappModule;
         this.webappService = WebAppService.getInstance();
+    }
+
+    @Override
+    public AzureActionEnum getAction() {
+        return AzureActionEnum.CREATE;
     }
 
     @Override
