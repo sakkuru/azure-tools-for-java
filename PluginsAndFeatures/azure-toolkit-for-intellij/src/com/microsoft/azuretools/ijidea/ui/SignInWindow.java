@@ -197,10 +197,9 @@ public class SignInWindow extends AzureDialogWrapper {
             EventUtil.logEvent(EventType.info, ACCOUNT, SIGNIN, properties, null);
             String authPath = authFileTextField.getText();
             if (StringUtils.isNullOrWhiteSpace(authPath)) {
-                DefaultLoader.getUIHelper().showMessageDialog(contentPane,
-                                                              "Select authentication file",
-                                                              "Sign in dialog info",
-                                                              Messages.getInformationIcon());
+                final String title = "Sign in dialog info";
+                final String message = "Select authentication file";
+                DefaultLoader.getUIHelper().showMessageDialog(contentPane, message, title, Messages.getInformationIcon());
                 return null;
             }
 
@@ -217,7 +216,7 @@ public class SignInWindow extends AzureDialogWrapper {
             authMethodDetailsResult.setAccountEmail(accountEmail);
             authMethodDetailsResult.setAzureEnv(CommonSettings.getEnvironment().getName());
         } else if (azureCliRadioButton.isSelected()) {
-            doLogin(() -> AzureCliAzureManager.getInstance().signIn(), signInAZProp);
+            call(() -> AzureCliAzureManager.getInstance().signIn(), signInAZProp);
             if (AzureCliAzureManager.getInstance().isSignedIn()) {
                 authMethodDetailsResult.setAuthMethod(AuthMethod.AZ);
             } else {
@@ -282,7 +281,7 @@ public class SignInWindow extends AzureDialogWrapper {
             fileDescriptor,
             this.project,
             LocalFileSystem.getInstance().findFileByPath(System.getProperty("user.home"))
-                                                       );
+        );
         if (file != null) {
             authFileTextField.setText(file.getPath());
         }
@@ -295,7 +294,7 @@ public class SignInWindow extends AzureDialogWrapper {
             if (dcAuthManager.isSignedIn()) {
                 doSignOut();
             }
-            doLogin(() -> dcAuthManager.signIn(null), signInDCProp);
+            call(() -> dcAuthManager.signIn(null), signInDCProp);
             accountEmail = dcAuthManager.getAccountEmail();
 
             return dcAuthManager;
@@ -307,10 +306,9 @@ public class SignInWindow extends AzureDialogWrapper {
         return null;
     }
 
-    private void doLogin(Callable loginCallable, Map<String, String> properties) {
+    private void call(Callable loginCallable, Map<String, String> properties) {
         Operation operation = TelemetryManager.createOperation(ACCOUNT, SIGNIN);
-        final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
-        progressIndicator.setText2("Signing in...");
+        ProgressManager.getInstance().getProgressIndicator().setText2("Signing in...");
 
         try {
             EventUtil.logEvent(EventType.info, operation, properties);
@@ -353,16 +351,8 @@ public class SignInWindow extends AzureDialogWrapper {
             AccessTokenAzureManager accessTokenAzureManager = new AccessTokenAzureManager(dcAuthManager);
             SubscriptionManager subscriptionManager = accessTokenAzureManager.getSubscriptionManager();
 
-            final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
-            progressIndicator.setText2("Loading subscriptions...");
-            try {
-                progressIndicator.setIndeterminate(true);
-                subscriptionManager.getSubscriptionDetails();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                //LOGGER.error("doCreateServicePrincipal::Task.Modal", ex);
-                AzureTaskManager.getInstance().runLater(() -> ErrorWindow.show(project, ex.getMessage(), "Load Subscription Error"));
-            }
+            ProgressManager.getInstance().getProgressIndicator().setText2("Loading subscriptions...");
+            subscriptionManager.getSubscriptionDetails();
 
             SrvPriSettingsDialog d = SrvPriSettingsDialog.go(subscriptionManager.getSubscriptionDetails(), project);
             List<SubscriptionDetail> subscriptionDetailsUpdated;
