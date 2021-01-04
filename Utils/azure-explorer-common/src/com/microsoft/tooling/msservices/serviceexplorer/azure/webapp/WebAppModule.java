@@ -43,8 +43,9 @@ public class WebAppModule extends AzureRefreshableNode implements WebAppModuleVi
     private static final String REDIS_SERVICE_MODULE_ID = WebAppModule.class.getName();
     private static final String ICON_PATH = "WebApp_16.png";
     private static final String BASE_MODULE_NAME = "Web Apps";
-    protected static final String MODULE_NAME = "Web App";
     private final WebAppModulePresenter<WebAppModule> webAppModulePresenter;
+
+    public static final String MODULE_NAME = "Web App";
 
     /**
      * Create the node containing all the Web App resources.

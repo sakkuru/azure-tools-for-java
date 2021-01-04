@@ -43,7 +43,7 @@ public class ProgressTaskModal implements IProgressTaskImpl {
 
     @Override
     public void doWork(IWorker worker) {
-        AzureTaskManager.getInstance().runInModal(new AzureTask(project, worker.getName(), true, () -> {
+        AzureTaskManager.getInstance().runInModal(new AzureTask(project, worker.getName(), false, () -> {
             final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
             progressIndicator.setIndeterminate(true);
             try {

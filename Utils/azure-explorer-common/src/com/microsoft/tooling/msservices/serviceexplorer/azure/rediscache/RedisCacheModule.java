@@ -35,6 +35,8 @@ public class RedisCacheModule extends AzureRefreshableNode {
     private static final String BASE_MODULE_NAME = "Redis Caches";
     private final RedisCacheModulePresenter<RedisCacheModule> redisCachePresenter;
 
+    public static final String MODULE_NAME = "Redis Cache";
+
     /**
      * Create the node containing all the Redis Cache resources.
      *

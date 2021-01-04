@@ -22,7 +22,11 @@
 
 package com.microsoft.intellij.forms;
 
-import com.google.common.util.concurrent.*;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -51,6 +55,9 @@ import com.microsoft.intellij.helpers.LinkListener;
 import com.microsoft.intellij.ui.components.AzureDialogWrapper;
 import com.microsoft.intellij.util.PluginUtil;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
+import com.microsoft.tooling.msservices.serviceexplorer.AzureActionEnum;
+import com.microsoft.tooling.msservices.serviceexplorer.Node;
+import com.microsoft.tooling.msservices.serviceexplorer.azure.rediscache.RedisCacheModule;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -119,7 +126,6 @@ public class CreateRedisCacheForm extends AzureDialogWrapper {
             + "Consecutive hyphens are not allowed.";
     private static final String DNS_NAME_REGEX = "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$";
     private static final String VALIDATION_FORMAT = "The name %s is not available.";
-    private static final String CREATING_INDICATOR = "Creating Redis Cache %s ...";
     private static final String CREATING_ERROR_INDICATOR = "An error occurred while attempting to %s.\n%s";
     private static final String NEW_RES_GRP_ERROR_FORMAT = "The resource group: %s is already existed.";
     private static final String RES_GRP_NAME_RULE = "Resource group name can only allows up to 90 characters, include"
@@ -201,8 +207,9 @@ public class CreateRedisCacheForm extends AzureDialogWrapper {
         }
 
         public Void call() throws Exception {
-            final String title = String.format(CREATING_INDICATOR, ((ProcessorBase) processor).DNSName());
-            AzureTaskManager.getInstance().runInBackground(new AzureTask(null, title, false, () -> {
+            String progressMessage = Node.getProgressMessage(AzureActionEnum.CREATE.getDoingName(),
+                    RedisCacheModule.MODULE_NAME, ((ProcessorBase) processor).DNSName());
+            AzureTaskManager.getInstance().runInBackground(new AzureTask(null, progressMessage, false, () -> {
                 try {
                     processor.waitForCompletion("PRODUCE");
                 } catch (InterruptedException ex) {

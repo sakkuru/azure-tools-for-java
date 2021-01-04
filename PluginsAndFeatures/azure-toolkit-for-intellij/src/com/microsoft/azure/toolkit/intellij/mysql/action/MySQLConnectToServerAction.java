@@ -28,6 +28,7 @@ import com.intellij.openapi.project.Project;
 import com.microsoft.azure.toolkit.lib.common.exception.AzureToolkitRuntimeException;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.ijidea.actions.AzureSignInAction;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import com.microsoft.intellij.AzurePlugin;
 import com.microsoft.intellij.util.AzureLoginHelper;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
@@ -36,6 +37,7 @@ import com.microsoft.tooling.msservices.serviceexplorer.AzureIconSymbol;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.mysql.MySQLNode;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Telemetrable;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 import java.lang.reflect.Constructor;
@@ -44,7 +46,7 @@ import java.lang.reflect.InvocationTargetException;
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
 @Name(MySQLConnectToServerAction.ACTION_NAME)
-public class MySQLConnectToServerAction extends NodeActionListener {
+public class MySQLConnectToServerAction extends NodeActionListener implements Telemetrable {
 
     private static final String DATABASE_TOOLS_PLUGIN_ID = "com.intellij.database";
     public static final String ACTION_NAME = "Connect to Server";
@@ -69,6 +71,11 @@ public class MySQLConnectToServerAction extends NodeActionListener {
     @Override
     public AzureIconSymbol getIconSymbol() {
         return AzureIconSymbol.MySQL.CONNECT_TO_SERVER;
+    }
+
+    @Override
+    public TelemetryParameter getTelemetryParameter() {
+        return TelemetryParameter.MySQL.CONNECT_TO_SERVER;
     }
 
     @Override
@@ -139,5 +146,4 @@ public class MySQLConnectToServerAction extends NodeActionListener {
             throw new AzureToolkitRuntimeException(String.format(ERROR_MESSAGE_PATTERN, node.getServer().name()), ERROR_ACTION);
         }
     }
-
 }

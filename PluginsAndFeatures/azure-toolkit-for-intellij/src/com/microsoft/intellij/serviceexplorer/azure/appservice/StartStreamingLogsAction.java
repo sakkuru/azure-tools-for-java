@@ -74,7 +74,7 @@ public class StartStreamingLogsAction extends NodeActionListener {
     @Override
     protected void actionPerformed(NodeActionEvent nodeActionEvent) throws AzureCmdException {
         EventUtil.executeWithLog(service, operation, op -> {
-            AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Start Streaming Logs", true, () -> {
+            AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Start Streaming Logs", false, () -> {
                 switch (operation) {
                     case START_STREAMING_LOG_FUNCTION_APP:
                         AppServiceStreamingLogManager.INSTANCE.showFunctionStreamingLog(project, resourceId);

@@ -147,7 +147,7 @@ public class IdeaSchedulers implements IdeSchedulers, ILogger {
     }
 
     public Scheduler backgroundableTask(final String title) {
-        return from(command -> ProgressManager.getInstance().run(new Backgroundable(project, title, true, DEAF) {
+        return from(command -> ProgressManager.getInstance().run(new Backgroundable(project, title, false, DEAF) {
             @Override
             public void run(final @NotNull ProgressIndicator indicator) {
                 final Thread workerThread = Thread.currentThread();

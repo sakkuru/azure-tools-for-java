@@ -470,7 +470,7 @@ public class ContainerRegistryPropertyView extends BaseEditor implements Contain
     }
 
     private void pullImage() {
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(null, PULL_IMAGE, true, () -> {
+        AzureTaskManager.getInstance().runInBackground(new AzureTask(null, PULL_IMAGE, false, () -> {
             try {
                 if (Utils.isEmptyString(currentRepo) || Utils.isEmptyString(currentTag)) {
                     throw new Exception(REPO_TAG_NOT_AVAILABLE);

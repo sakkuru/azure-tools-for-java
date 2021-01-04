@@ -26,10 +26,12 @@ import com.microsoft.azure.management.mysql.v2020_01_01.Server;
 import com.microsoft.azure.management.mysql.v2020_01_01.ServerState;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.core.mvp.model.mysql.MySQLMvpModel;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.serviceexplorer.*;
 import com.microsoft.tooling.msservices.serviceexplorer.listener.Backgroundable;
 import com.microsoft.tooling.msservices.serviceexplorer.listener.Promptable;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Telemetrable;
 import lombok.Getter;
 
 import java.util.List;
@@ -91,7 +93,7 @@ public class MySQLNode extends Node {
     }
 
     // Delete action class
-    private class DeleteAction extends NodeActionListener implements Backgroundable, Promptable {
+    private class DeleteAction extends NodeActionListener implements Backgroundable, Promptable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -108,10 +110,15 @@ public class MySQLNode extends Node {
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.DELETE.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.DELETE;
+        }
     }
 
     // Start action class
-    private class StartAction extends NodeActionListener implements Backgroundable {
+    private class StartAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -124,10 +131,15 @@ public class MySQLNode extends Node {
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.START.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.START;
+        }
     }
 
     // Stop action class
-    private class StopAction extends NodeActionListener implements Backgroundable {
+    private class StopAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -140,10 +152,15 @@ public class MySQLNode extends Node {
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.STOP.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.STOP;
+        }
     }
 
     // Restart action class
-    private class RestartAction extends NodeActionListener implements Backgroundable {
+    private class RestartAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -156,10 +173,15 @@ public class MySQLNode extends Node {
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.RESTART.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.RESTART;
+        }
     }
 
     // Open in browser action class
-    private class OpenInBrowserAction extends NodeActionListener implements Backgroundable {
+    private class OpenInBrowserAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -170,10 +192,15 @@ public class MySQLNode extends Node {
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.OPEN_IN_PORTAL.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.OPEN_IN_PORTAL;
+        }
     }
 
     // Show Properties
-    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable {
+    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -183,6 +210,11 @@ public class MySQLNode extends Node {
         @Override
         public String getProgressMessage() {
             return Node.getProgressMessage(AzureActionEnum.SHOW_PROPERTIES.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.MySQL.SHOW_PROPERTIES;
         }
     }
 

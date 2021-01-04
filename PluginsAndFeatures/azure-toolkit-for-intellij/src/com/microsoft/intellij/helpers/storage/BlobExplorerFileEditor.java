@@ -583,7 +583,7 @@ public class BlobExplorerFileEditor implements FileEditor, TelemetryProperties {
         final BlobFile fileSelection = getFileSelection();
 
         if (fileSelection != null) {
-            AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Downloading blob...", true, () -> {
+            AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Downloading blob...", false, () -> {
                 final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
                 try {
                     progressIndicator.setIndeterminate(false);
@@ -691,7 +691,7 @@ public class BlobExplorerFileEditor implements FileEditor, TelemetryProperties {
     }
 
     private void uploadFile(final String path, final File selectedFile) {
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Uploading blob...", true, () -> {
+        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Uploading blob...", false, () -> {
             final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
             try {
                 final BlobDirectory blobDirectory = directoryQueue.peekLast();

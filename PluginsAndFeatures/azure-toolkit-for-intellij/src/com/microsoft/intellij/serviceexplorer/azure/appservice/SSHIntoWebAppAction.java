@@ -77,7 +77,7 @@ public class SSHIntoWebAppAction extends NodeActionListener {
         logger.info(String.format(message("webapp.ssh.hint.startSSH"), webAppName));
         // ssh to connect to remote web app container.
         final String title = String.format(message("webapp.ssh.task.connectWebApp.title"), webAppName);
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, title, true, () -> {
+        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, title, false, () -> {
             // check these conditions to ssh into web app
             if (!SSHTerminalManager.INSTANCE.beforeExecuteAzCreateRemoteConnection(subscriptionId, os, this.app.linuxFxVersion())) {
                 return;
@@ -92,7 +92,7 @@ public class SSHIntoWebAppAction extends NodeActionListener {
                 TerminalView terminalView = TerminalView.getInstance(project);
                 ShellTerminalWidget shellTerminalWidget = terminalView.createLocalShellWidget(null, String.format(WEBAPP_TERMINAL_TABLE_NAME, webAppName));
                 final String messageTitle = String.format(message("webapp.ssh.task.openSSH.title"), webAppName);
-                AzureTaskManager.getInstance().runInBackground(new AzureTask(project, messageTitle, true, () -> {
+                AzureTaskManager.getInstance().runInBackground(new AzureTask(project, messageTitle, false, () -> {
                     // create connection to the local proxy.
                     SSHTerminalManager.INSTANCE.openConnectionInTerminal(shellTerminalWidget, connectionInfo);
                 }));

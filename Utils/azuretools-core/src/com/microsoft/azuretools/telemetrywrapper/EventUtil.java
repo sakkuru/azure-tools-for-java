@@ -25,6 +25,7 @@ package com.microsoft.azuretools.telemetrywrapper;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
@@ -151,6 +152,24 @@ public class EventUtil {
         }
     }
 
+    public static void executeWithLog(TelemetryParameter telemetryParameter, Map<String, String> properties,
+                                      Map<String, Double> metrics, TelemetryConsumer<Operation> consumer, Consumer<Exception> errorHandle) {
+        Operation operation = TelemetryManager.createOperation(telemetryParameter);
+        try {
+            operation.start();
+            consumer.accept(operation);
+        } catch (Exception e) {
+            logError(operation, ErrorType.userError, e, properties, metrics);
+            if (errorHandle != null) {
+                errorHandle.accept(e);
+            } else {
+                throw new RuntimeException(e);
+            }
+        } finally {
+            operation.complete();
+        }
+    }
+
     public static <R> R executeWithLog(String serviceName, String operName, Map<String, String> properties,
         Map<String, Double> metrics, TelemetryFunction<Operation, R> function, Consumer<Exception> errorHandle) {
         Operation operation = TelemetryManager.createOperation(serviceName, operName);
@@ -168,6 +187,10 @@ public class EventUtil {
             operation.complete();
         }
         return null;
+    }
+
+    public static void executeWithLog(TelemetryParameter telemetryParameter, TelemetryConsumer<Operation> consumer) {
+        executeWithLog(telemetryParameter, null, null, consumer, null);
     }
 
     public static void executeWithLog(String serviceName, String operName, TelemetryConsumer<Operation> consumer) {

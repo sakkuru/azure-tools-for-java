@@ -30,11 +30,9 @@ import com.microsoft.azure.toolkit.lib.appservice.Draft;
 import com.microsoft.azure.toolkit.lib.common.operation.AzureOperation;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.core.mvp.model.mysql.MySQLMvpModel;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import com.microsoft.azuretools.telemetrywrapper.Operation;
 import com.microsoft.azuretools.telemetrywrapper.TelemetryManager;
-
-import static com.microsoft.azuretools.telemetry.TelemetryConstants.MYSQL;
-import static com.microsoft.azuretools.telemetry.TelemetryConstants.MYSQL_CREATE;
 
 public class AzureMySQLService {
     private static final AzureMySQLService instance = new AzureMySQLService();
@@ -53,7 +51,7 @@ public class AzureMySQLService {
         type = AzureOperation.Type.SERVICE
     )
     public Server createMySQL(final AzureMySQLConfig config) {
-        final Operation operation = TelemetryManager.createOperation(MYSQL, MYSQL_CREATE);
+        final Operation operation = TelemetryManager.createOperation(TelemetryParameter.MySQL.CREATE);
         try {
             operation.start();
             String subscrptionId = config.getSubscription().subscriptionId();

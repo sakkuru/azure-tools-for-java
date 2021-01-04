@@ -49,6 +49,7 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.util.Utils;
 import com.microsoft.azuretools.telemetry.TelemetryConstants;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import com.microsoft.azuretools.telemetrywrapper.EventUtil;
 import com.microsoft.intellij.AzurePlugin;
 import com.microsoft.intellij.forms.ErrorMessageForm;
@@ -64,15 +65,23 @@ import com.microsoft.intellij.helpers.mysql.MySQLPropertyViewProvider;
 import com.microsoft.intellij.helpers.rediscache.RedisCacheExplorerProvider;
 import com.microsoft.intellij.helpers.rediscache.RedisCachePropertyView;
 import com.microsoft.intellij.helpers.rediscache.RedisCachePropertyViewProvider;
-import com.microsoft.intellij.helpers.storage.*;
+import com.microsoft.intellij.helpers.storage.BlobExplorerFileEditor;
+import com.microsoft.intellij.helpers.storage.BlobExplorerFileEditorProvider;
+import com.microsoft.intellij.helpers.storage.QueueExplorerFileEditorProvider;
+import com.microsoft.intellij.helpers.storage.QueueFileEditor;
+import com.microsoft.intellij.helpers.storage.TableExplorerFileEditorProvider;
+import com.microsoft.intellij.helpers.storage.TableFileEditor;
 import com.microsoft.intellij.helpers.webapp.DeploymentSlotPropertyViewProvider;
 import com.microsoft.intellij.helpers.webapp.WebAppPropertyViewProvider;
 import com.microsoft.intellij.ui.util.UIUtils;
 import com.microsoft.intellij.util.PluginUtil;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.helpers.UIHelper;
+import com.microsoft.tooling.msservices.model.storage.BlobContainer;
+import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 import com.microsoft.tooling.msservices.model.storage.Queue;
-import com.microsoft.tooling.msservices.model.storage.*;
+import com.microsoft.tooling.msservices.model.storage.StorageServiceTreeItem;
+import com.microsoft.tooling.msservices.model.storage.Table;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureIconSymbol;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.arm.deployments.DeploymentNode;
@@ -582,7 +591,7 @@ public class UIHelperImpl implements UIHelper {
 
     @Override
     public void openMySQLPropertyView(@NotNull MySQLNode node) {
-        EventUtil.executeWithLog(TelemetryConstants.MYSQL, TelemetryConstants.MYSQL_SHOW_PROPERTIES, (operation) -> {
+        EventUtil.executeWithLog(TelemetryParameter.MySQL.SHOW_PROPERTIES, (operation) -> {
             String name = node.getName();
             String subscriptionId = node.getSubscriptionId();
             String nodeId = node.getId();

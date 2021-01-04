@@ -123,6 +123,18 @@ public final class TelemetryParameter {
         TelemetryParameter BIND_INTO = new TelemetryParameter(MODULE, buildOperationName(MODULE, "bind-into"));
     }
 
+    public interface RedisCache {
+        String MODULE = "redis";
+
+        TelemetryParameter CREATE = new TelemetryParameter(MODULE, "create-redis");
+        TelemetryParameter DELETE = new TelemetryParameter(MODULE, "delete-redis");
+        TelemetryParameter SCAN = new TelemetryParameter(MODULE, "scan-redis");
+        TelemetryParameter GET = new TelemetryParameter(MODULE, "get-redis");
+        TelemetryParameter OPEN_IN_PORTAL = new TelemetryParameter(MODULE, "open-browser-redis");
+        TelemetryParameter SHOW_PROPERTIES = new TelemetryParameter(MODULE, "readprop-redis");
+        TelemetryParameter OPEN_EXPLORER = new TelemetryParameter(MODULE, "open-explorer-redis");
+    }
+
     @Override
     public int hashCode() {
         return this.operationName.hashCode();

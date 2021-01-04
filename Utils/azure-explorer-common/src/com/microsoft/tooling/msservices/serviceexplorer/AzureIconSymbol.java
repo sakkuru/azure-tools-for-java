@@ -91,6 +91,9 @@ public final class AzureIconSymbol {
         AzureIconSymbol RUNNING = fillInPath("DeploymentSlot/DeploymentSlotRunning.svg");
         AzureIconSymbol STOPPED = fillInPath("DeploymentSlot/DeploymentSlotStopped.svg");
         AzureIconSymbol UPDATING = fillInPath("DeploymentSlot/DeploymentSlotUpdating.svg");
+        AzureIconSymbol RUNNING_ON_LINUX = fillInPath("DeploymentSlot/DeploymentSlotRunningOnLinux.svg");
+        AzureIconSymbol STOPPED_ON_LINUX = fillInPath("DeploymentSlot/DeploymentSlotStoppedOnLinux.svg");
+        AzureIconSymbol UPDATING_ON_LINUX = fillInPath("DeploymentSlot/DeploymentSlotUpdatingOnLinux.svg");
     }
 
     public interface FunctionApp {

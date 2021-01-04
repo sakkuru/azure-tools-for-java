@@ -58,7 +58,7 @@ public abstract class NodeActionListenerAsync extends NodeActionListener {
         final SettableFuture<Void> future = SettableFuture.create();
 
         if (shouldRun) {
-            AzureTaskManager.getInstance().runInBackground(new AzureTask(actionEvent.getAction().getNode().getProject(), progressMessage, true, () -> {
+            AzureTaskManager.getInstance().runInBackground(new AzureTask(actionEvent.getAction().getNode().getProject(), progressMessage, false, () -> {
                 try {
                     actionPerformed(actionEvent);
                     future.set(null);

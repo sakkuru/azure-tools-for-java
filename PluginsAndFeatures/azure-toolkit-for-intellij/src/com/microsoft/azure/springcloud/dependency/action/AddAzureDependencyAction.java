@@ -88,7 +88,7 @@ public class AddAzureDependencyAction extends AzureAnAction {
             return true;
         }
 
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Update Azure Spring Cloud dependencies", false, () -> {
+        AzureTaskManager.getInstance().runInBackground(new AzureTask(project, "Update Azure Spring Cloud dependencies", true, () -> {
             ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
             progressIndicator.setText("Syncing maven project " + project.getName());
             final SettableFuture<Boolean> isDirty = SettableFuture.create();

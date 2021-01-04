@@ -22,29 +22,30 @@
 
 package com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.deploymentslot;
 
+import com.microsoft.azure.management.appservice.DeploymentSlot;
+import com.microsoft.azure.management.appservice.WebApp;
 import com.microsoft.azure.toolkit.lib.common.operation.AzureOperation;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.core.mvp.model.webapp.AzureWebAppMvpModel;
+import com.microsoft.azuretools.telemetry.TelemetryParameter;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
+import com.microsoft.tooling.msservices.serviceexplorer.AzureActionEnum;
+import com.microsoft.tooling.msservices.serviceexplorer.AzureIconSymbol;
+import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeAction;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
-import com.microsoft.tooling.msservices.serviceexplorer.WrappedTelemetryNodeActionListener;
-import com.microsoft.tooling.msservices.serviceexplorer.AzureIconSymbol;
-import com.microsoft.tooling.msservices.serviceexplorer.azure.AzureNodeActionPromptListener;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.base.WebAppBaseNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.base.WebAppBaseState;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Backgroundable;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Promptable;
+import com.microsoft.tooling.msservices.serviceexplorer.listener.Telemetrable;
 
 import java.util.List;
-
-import static com.microsoft.azuretools.telemetry.TelemetryConstants.*;
 
 public class DeploymentSlotNode extends WebAppBaseNode implements DeploymentSlotNodeView {
     private static final String ACTION_SWAP_WITH_PRODUCTION = "Swap with production";
     private static final String LABEL = "Slot";
-    private static final String DELETE_SLOT_PROMPT_MESSAGE = "This operation will delete the Deployment Slot: %s.\n"
-        + "Are you sure you want to continue?";
-    private static final String DELETE_SLOT_PROGRESS_MESSAGE = "Deleting Deployment Slot";
-    private final DeploymentSlotNodePresenter presenter;
     protected final String webAppId;
     protected final String webAppName;
     protected final String slotName;
@@ -56,16 +57,21 @@ public class DeploymentSlotNode extends WebAppBaseNode implements DeploymentSlot
         this.webAppId = webAppId;
         this.webAppName = webAppName;
         this.slotName = name;
-        this.presenter = new DeploymentSlotNodePresenter();
-        this.presenter.onAttachView(this);
         loadActions();
     }
 
     @Override
     public @Nullable AzureIconSymbol getIconSymbol() {
+        boolean isLinux = OS_LINUX.equalsIgnoreCase(os);
         boolean running = WebAppBaseState.RUNNING.equals(state);
         boolean updating = WebAppBaseState.UPDATING.equals(state);
-        return running ? AzureIconSymbol.DeploymentSlot.RUNNING : updating ? AzureIconSymbol.DeploymentSlot.UPDATING : AzureIconSymbol.DeploymentSlot.STOPPED;
+        if (isLinux) {
+            return running ? AzureIconSymbol.DeploymentSlot.RUNNING_ON_LINUX :
+                    updating ? AzureIconSymbol.DeploymentSlot.UPDATING_ON_LINUX : AzureIconSymbol.DeploymentSlot.STOPPED_ON_LINUX;
+        } else {
+            return running ? AzureIconSymbol.DeploymentSlot.RUNNING :
+                    updating ? AzureIconSymbol.DeploymentSlot.UPDATING : AzureIconSymbol.DeploymentSlot.STOPPED;
+        }
     }
 
     public String getWebAppId() {
@@ -85,40 +91,14 @@ public class DeploymentSlotNode extends WebAppBaseNode implements DeploymentSlot
     @Override
     protected void loadActions() {
         // todo: why only the stop action has icon?
-        addAction(ACTION_STOP, getIcon(this.os, this.label, WebAppBaseState.STOPPED),
-            new WrappedTelemetryNodeActionListener(WEBAPP, STOP_WEBAPP_SLOT,
-                createBackgroundActionListener("Stopping Deployment Slot", () -> stop())));
-        addAction(ACTION_START, new WrappedTelemetryNodeActionListener(WEBAPP, START_WEBAPP_SLOT,
-            createBackgroundActionListener("Starting Deployment Slot", () -> start())));
-        addAction(ACTION_RESTART, new WrappedTelemetryNodeActionListener(WEBAPP, RESTART_WEBAPP_SLOT,
-            createBackgroundActionListener("Restarting Deployment Slot", () -> restart())));
-        addAction(ACTION_SWAP_WITH_PRODUCTION, new WrappedTelemetryNodeActionListener(WEBAPP, SWAP_WEBAPP_SLOT,
-            createBackgroundActionListener("Swapping with Production", () -> swapWithProduction())));
-        addAction(ACTION_OPEN_IN_BROWSER, new WrappedTelemetryNodeActionListener(WEBAPP, OPERN_WEBAPP_SLOT_BROWSER, new NodeActionListener() {
-            @Override
-            protected void actionPerformed(NodeActionEvent e) {
-                openInBrowser();
-            }
-        }));
-        addAction(ACTION_DELETE, new DeleteDeploymentSlotAction());
-        addAction(ACTION_SHOW_PROPERTY, new WrappedTelemetryNodeActionListener(WEBAPP, SHOW_WEBAPP_SLOT_PROP, new NodeActionListener() {
-            @Override
-            protected void actionPerformed(NodeActionEvent e) {
-                showProperties();
-            }
-        }));
+        addAction(new StopAction().asGenericListener(AzureActionEnum.STOP));
+        addAction(new StartAction().asGenericListener(AzureActionEnum.START));
+        addAction(new RestartAction().asGenericListener(AzureActionEnum.RESTART));
+        addAction(new OpenInPortalAction().asGenericListener(AzureActionEnum.OPEN_IN_PORTAL));
+        addAction(new DeleteAction().asGenericListener(AzureActionEnum.DELETE));
+        addAction(new ShowPropertiesAction().asGenericListener(AzureActionEnum.SHOW_PROPERTIES));
+        addAction(ACTION_SWAP_WITH_PRODUCTION, new SwapAction().asGenericListener());
         super.loadActions();
-    }
-
-    @AzureOperation(value = "show properties of deployment slot", type = AzureOperation.Type.ACTION)
-    private void showProperties() {
-        DefaultLoader.getUIHelper().openDeploymentSlotPropertyView(
-            DeploymentSlotNode.this);
-    }
-
-    @AzureOperation(value = "open deployment slot in local browser", type = AzureOperation.Type.ACTION)
-    private void openInBrowser() {
-        DefaultLoader.getUIHelper().openInBrowser("http://" + hostName);
     }
 
     @Override
@@ -128,55 +108,162 @@ public class DeploymentSlotNode extends WebAppBaseNode implements DeploymentSlot
         // Override the function to do noting to disable the auto refresh functionality.
     }
 
-    @AzureOperation(value = "start deployment slot", type = AzureOperation.Type.ACTION)
-    private void start() {
-        presenter.onStartDeploymentSlot(this.subscriptionId, this.webAppId, this.slotName);
-    }
-
-    @AzureOperation(value = "stop deployment slot", type = AzureOperation.Type.ACTION)
-    private void stop() {
-        presenter.onStopDeploymentSlot(this.subscriptionId, this.webAppId, this.slotName);
-    }
-
-    @AzureOperation(value = "restart deployment slot", type = AzureOperation.Type.ACTION)
-    private void restart() {
-        presenter.onRestartDeploymentSlot(this.subscriptionId, this.webAppId, this.slotName);
-    }
-
-    @AzureOperation(value = "swap deployment slot for production", type = AzureOperation.Type.ACTION)
-    private void swapWithProduction() {
-        presenter.onSwapWithProduction(this.subscriptionId, this.webAppId, this.slotName);
-    }
-
     @Override
     @AzureOperation(value = "refresh deployment slot", type = AzureOperation.Type.ACTION)
     protected void refreshItems() {
-        presenter.onRefreshNode(this.subscriptionId, this.webAppId, this.slotName);
+        final WebApp app = AzureWebAppMvpModel.getInstance().getWebAppById(subscriptionId, webAppId);
+        final DeploymentSlot slot = app.deploymentSlots().getByName(slotName);
+        this.renderNode(WebAppBaseState.fromString(slot.state()));
     }
 
-    private class DeleteDeploymentSlotAction extends AzureNodeActionPromptListener {
-        DeleteDeploymentSlotAction() {
-            super(DeploymentSlotNode.this, String.format(DELETE_SLOT_PROMPT_MESSAGE, getName()),
-                DELETE_SLOT_PROGRESS_MESSAGE);
+    // Delete action class
+    private class DeleteAction extends NodeActionListener implements Backgroundable, Promptable, Telemetrable {
+
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            DeploymentSlotNode.this.getParent()
+                    .removeNode(DeploymentSlotNode.this.getSubscriptionId(), DeploymentSlotNode.this.getName(), DeploymentSlotNode.this);
         }
 
         @Override
-        protected void azureNodeAction(NodeActionEvent e) {
-            getParent().removeNode(getSubscriptionId(), getName(), DeploymentSlotNode.this);
+        public String getPromptMessage() {
+            return Node.getPromptMessage(AzureActionEnum.DELETE.getName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
         }
 
         @Override
-        protected void onSubscriptionsChanged(NodeActionEvent e) {
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.DELETE.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
         }
 
         @Override
-        protected String getServiceName(NodeActionEvent event) {
-            return WEBAPP;
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.DELETE;
+        }
+    }
+
+    // start action class
+    private class StartAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "start deployment slot", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            AzureWebAppMvpModel.getInstance().startDeploymentSlot(subscriptionId, webAppId, slotName);
+            DeploymentSlotNode.this.renderNode(WebAppBaseState.RUNNING);
         }
 
         @Override
-        protected String getOperationName(NodeActionEvent event) {
-            return DELETE_WEBAPP_SLOT;
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.START.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.START;
+        }
+    }
+
+    // stop action class
+    private class StopAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "stop deployment slot", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            AzureWebAppMvpModel.getInstance().stopDeploymentSlot(subscriptionId, webAppId, slotName);
+            DeploymentSlotNode.this.renderNode(WebAppBaseState.STOPPED);
+        }
+
+        @Override
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.STOP.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.STOP;
+        }
+
+    }
+
+    // restart action class
+    private class RestartAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "restart deployment slot", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            AzureWebAppMvpModel.getInstance().restartDeploymentSlot(subscriptionId, webAppId, slotName);
+            DeploymentSlotNode.this.renderNode(WebAppBaseState.RUNNING);
+        }
+
+        @Override
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.RESTART.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.RESTART;
+        }
+
+    }
+
+    // restart action class
+    private class SwapAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "swap deployment slot for production", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            AzureWebAppMvpModel.getInstance().swapSlotWithProduction(subscriptionId, webAppId, slotName);
+        }
+
+        @Override
+        public String getProgressMessage() {
+            return Node.getProgressMessage("Swapping", DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.SWAP;
+        }
+
+    }
+
+    // Open in browser action class
+    private class OpenInPortalAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "open deployment slot in local browser", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            DefaultLoader.getUIHelper().openInBrowser("http://" + DeploymentSlotNode.this.hostName);
+        }
+
+        @Override
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.OPEN_IN_PORTAL.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.OPEN_IN_PORTAL;
+        }
+    }
+
+    // Show properties action class
+    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable, Telemetrable {
+
+        @AzureOperation(value = "show properties of deployment slot", type = AzureOperation.Type.ACTION)
+        @Override
+        protected void actionPerformed(NodeActionEvent e) {
+            DefaultLoader.getUIHelper().openDeploymentSlotPropertyView(DeploymentSlotNode.this);
+        }
+
+        @Override
+        public String getProgressMessage() {
+            return Node.getProgressMessage(AzureActionEnum.SHOW_PROPERTIES.getDoingName(), DeploymentSlotModule.MODULE_NAME, DeploymentSlotNode.this.name);
+        }
+
+        @Override
+        public TelemetryParameter getTelemetryParameter() {
+            return TelemetryParameter.WebApp.DeploymentSlot.SHOW_PROPERTIES;
         }
     }
 }

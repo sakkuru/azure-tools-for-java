@@ -126,7 +126,7 @@ public abstract class RefreshableNode extends Node {
         final RefreshableNode node = this;
         final SettableFuture<List<Node>> future = SettableFuture.create();
 
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(getProject(), "Loading " + getName() + "...", true, new Runnable() {
+        AzureTaskManager.getInstance().runInBackground(new AzureTask(getProject(), "Loading " + getName() + "...", false, new Runnable() {
             @Override
             public void run() {
                 if (!loading) {
