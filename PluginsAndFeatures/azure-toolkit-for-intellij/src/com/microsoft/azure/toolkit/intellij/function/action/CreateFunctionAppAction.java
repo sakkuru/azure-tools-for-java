@@ -31,6 +31,7 @@ import com.intellij.openapi.project.Project;
 import com.microsoft.azure.management.appservice.FunctionApp;
 import com.microsoft.azure.toolkit.intellij.function.FunctionAppCreationDialog;
 import com.microsoft.azure.toolkit.lib.common.handler.AzureExceptionHandler;
+import com.microsoft.azure.toolkit.lib.common.handler.AzureExceptionHandler.AzureExceptionAction;
 import com.microsoft.azure.toolkit.lib.common.operation.AzureOperation;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTask;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTaskManager;
@@ -49,6 +50,7 @@ import com.microsoft.tooling.msservices.serviceexplorer.azure.function.FunctionM
 import rx.Single;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
@@ -85,9 +87,9 @@ public class CreateFunctionAppAction extends NodeActionListener {
             this.createFunctionApp(config)
                 .subscribe(functionApp -> {
                 }, (error) -> {
-                    final AzureExceptionHandler.AzureExceptionAction action = AzureExceptionHandler.AzureExceptionAction.simple(
-                        String.format("Reopen dialog \"%s\"", dialog.getTitle()),
-                        t -> AzureTaskManager.getInstance().runLater("open dialog", () -> this.openDialog(project, config)));
+                    final String title = String.format("Reopen dialog \"%s\"", dialog.getTitle());
+                    final Consumer<Throwable> act = t -> AzureTaskManager.getInstance().runLater("open dialog", () -> this.openDialog(project, config));
+                    final AzureExceptionAction action = AzureExceptionAction.simple(title, act);
                     AzureExceptionHandler.notify(error, action);
                 });
         });
@@ -117,8 +119,8 @@ public class CreateFunctionAppAction extends NodeActionListener {
     }
 
     private void notifyCreationSuccess(final FunctionApp app) {
-        final String title = message("function.create.task.success.notification.title");
-        final String message = String.format(message("function.create.task.success.notification.message"), app.name());
+        final String title = message("function.create.success.title");
+        final String message = String.format(message("function.create.success.message"), app.name());
         final Notification notification = new Notification(NOTIFICATION_GROUP_ID, title, message, NotificationType.INFORMATION);
         Notifications.Bus.notify(notification);
     }

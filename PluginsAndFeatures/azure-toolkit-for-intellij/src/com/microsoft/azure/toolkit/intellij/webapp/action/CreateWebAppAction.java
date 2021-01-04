@@ -55,6 +55,7 @@ import rx.Single;
 
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
@@ -95,9 +96,9 @@ public class CreateWebAppAction extends NodeActionListener {
                         AzureTaskManager.getInstance().runLater("deploy", () -> deploy(webapp, artifact, project));
                     }
                 }, (error) -> {
-                    final AzureExceptionAction action = AzureExceptionAction.simple(
-                        String.format("Reopen dialog \"%s\"", dialog.getTitle()),
-                        t -> AzureTaskManager.getInstance().runLater("open dialog", () -> this.openDialog(project, config)));
+                    final String title = String.format("Reopen dialog \"%s\"", dialog.getTitle());
+                    final Consumer<Throwable> act = t -> AzureTaskManager.getInstance().runLater("open dialog", () -> this.openDialog(project, config));
+                    final AzureExceptionAction action = AzureExceptionAction.simple(title, act);
                     AzureExceptionHandler.notify(error, action);
                 });
         });
