@@ -22,6 +22,7 @@
 
 package com.microsoft.azure.toolkit.lib.common.task;
 
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,11 +36,12 @@ public class AzureTask<T> {
     private final Object project;
     private final boolean cancellable;
     @Builder.Default
-    private final boolean backgroundable = true;
+    @Setter
+    private boolean backgroundable = true;
     private final String title;
 
-    @Setter
-    private boolean runningBackground = false;
+    @Setter(AccessLevel.PACKAGE)
+    private AzureTaskContext.Node context;
 
     public AzureTask(Runnable runnable) {
         this(runnable, Modality.DEFAULT);
