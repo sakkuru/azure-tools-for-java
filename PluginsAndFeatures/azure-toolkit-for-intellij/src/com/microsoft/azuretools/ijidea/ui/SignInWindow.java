@@ -35,6 +35,7 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.microsoft.azure.auth.AzureAuthHelper;
 import com.microsoft.azure.auth.AzureTokenWrapper;
+import com.microsoft.azure.toolkit.intellij.common.AzureDialog;
 import com.microsoft.azure.toolkit.lib.common.exception.AzureToolkitRuntimeException;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTask;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTaskManager;
@@ -53,6 +54,7 @@ import com.microsoft.intellij.util.PluginUtil;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import org.jdesktop.swingx.JXHyperlink;
 import org.jetbrains.annotations.Nullable;
+import rx.Single;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -89,8 +91,9 @@ public class SignInWindow extends AzureDialogWrapper {
     private String accountEmail;
 
     private Project project;
+    private AzureDialog.OkActionListener<? super AuthMethodDetails> okActionListener;
 
-    private SignInWindow(AuthMethodDetails authMethodDetails, Project project) {
+    public SignInWindow(AuthMethodDetails authMethodDetails, Project project) {
         super(project, true, IdeModalityType.PROJECT);
         this.project = project;
         setModal(true);
@@ -176,8 +179,16 @@ public class SignInWindow extends AzureDialogWrapper {
         return contentPane;
     }
 
-    @Override
-    protected void doOKAction() {
+    public Single<AuthMethodDetails> login() {
+        final AzureTask<AuthMethodDetails> task = new AzureTask<>(null, "Signing in to Azure...", false, () -> {
+            final ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
+            indicator.setIndeterminate(true);
+            return this.doLogin();
+        });
+        return AzureTaskManager.getInstance().runInModal(task).toSingle();
+    }
+
+    private AuthMethodDetails doLogin() {
         authMethodDetailsResult = new AuthMethodDetails();
         if (automatedRadioButton.isSelected()) { // automated
             final Map<String, String> properties = new HashMap<>();
@@ -186,11 +197,10 @@ public class SignInWindow extends AzureDialogWrapper {
             EventUtil.logEvent(EventType.info, ACCOUNT, SIGNIN, properties, null);
             String authPath = authFileTextField.getText();
             if (StringUtils.isNullOrWhiteSpace(authPath)) {
-                DefaultLoader.getUIHelper().showMessageDialog(contentPane,
-                                                              "Select authentication file",
-                                                              "Sign in dialog info",
-                                                              Messages.getInformationIcon());
-                return;
+                final String title = "Sign in dialog info";
+                final String message = "Select authentication file";
+                DefaultLoader.getUIHelper().showMessageDialog(contentPane, message, title, Messages.getInformationIcon());
+                return null;
             }
 
             authMethodDetailsResult.setAuthMethod(AuthMethod.SP);
@@ -200,21 +210,20 @@ public class SignInWindow extends AzureDialogWrapper {
             doDeviceLogin();
             if (StringUtils.isNullOrEmpty(accountEmail)) {
                 System.out.println("Canceled by the user.");
-                return;
+                return null;
             }
             authMethodDetailsResult.setAuthMethod(AuthMethod.DC);
             authMethodDetailsResult.setAccountEmail(accountEmail);
             authMethodDetailsResult.setAzureEnv(CommonSettings.getEnvironment().getName());
         } else if (azureCliRadioButton.isSelected()) {
-            doLogin(() -> AzureCliAzureManager.getInstance().signIn(), signInAZProp);
+            call(() -> AzureCliAzureManager.getInstance().signIn(), signInAZProp);
             if (AzureCliAzureManager.getInstance().isSignedIn()) {
                 authMethodDetailsResult.setAuthMethod(AuthMethod.AZ);
             } else {
-                return;
+                return null;
             }
         }
-
-        super.doOKAction();
+        return authMethodDetailsResult;
     }
 
     @Override
@@ -285,7 +294,7 @@ public class SignInWindow extends AzureDialogWrapper {
             if (dcAuthManager.isSignedIn()) {
                 doSignOut();
             }
-            doLogin(() -> dcAuthManager.signIn(null), signInDCProp);
+            call(() -> dcAuthManager.signIn(null), signInDCProp);
             accountEmail = dcAuthManager.getAccountEmail();
 
             return dcAuthManager;
@@ -297,21 +306,21 @@ public class SignInWindow extends AzureDialogWrapper {
         return null;
     }
 
-    private void doLogin(Callable loginCallable, Map<String, String> properties) {
+    private void call(Callable loginCallable, Map<String, String> properties) {
         Operation operation = TelemetryManager.createOperation(ACCOUNT, SIGNIN);
-        AzureTaskManager.getInstance().runInModal(new AzureTask(project, "Sign In Progress", false, () -> {
-            try {
-                EventUtil.logEvent(EventType.info, operation, properties);
-                operation.start();
-                loginCallable.call();
-            } catch (Exception e) {
-                throw new AzureToolkitRuntimeException(e.getMessage(), e);
-            } finally {
-                EventUtil.logEvent(EventType.info, operation, Collections.singletonMap(
-                    AZURE_ENVIRONMENT, CommonSettings.getEnvironment().getName()));
-                operation.complete();
-            }
-        }));
+        ProgressManager.getInstance().getProgressIndicator().setText2("Signing in...");
+
+        try {
+            EventUtil.logEvent(EventType.info, operation, properties);
+            operation.start();
+            loginCallable.call();
+        } catch (Exception e) {
+            throw new AzureToolkitRuntimeException(e.getMessage(), e);
+        } finally {
+            EventUtil.logEvent(EventType.info, operation, Collections.singletonMap(
+                AZURE_ENVIRONMENT, CommonSettings.getEnvironment().getName()));
+            operation.complete();
+        }
     }
 
     private void doSignOut() {
@@ -342,18 +351,8 @@ public class SignInWindow extends AzureDialogWrapper {
             AccessTokenAzureManager accessTokenAzureManager = new AccessTokenAzureManager(dcAuthManager);
             SubscriptionManager subscriptionManager = accessTokenAzureManager.getSubscriptionManager();
 
-            AzureTaskManager.getInstance().runInModal(new AzureTask(project, "Load Subscriptions Progress", true, () -> {
-                final ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
-                progressIndicator.setText("Loading subscriptions...");
-                try {
-                    progressIndicator.setIndeterminate(true);
-                    subscriptionManager.getSubscriptionDetails();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    //LOGGER.error("doCreateServicePrincipal::Task.Modal", ex);
-                    AzureTaskManager.getInstance().runLater(() -> ErrorWindow.show(project, ex.getMessage(), "Load Subscription Error"));
-                }
-            }));
+            ProgressManager.getInstance().getProgressIndicator().setText2("Loading subscriptions...");
+            subscriptionManager.getSubscriptionDetails();
 
             SrvPriSettingsDialog d = SrvPriSettingsDialog.go(subscriptionManager.getSubscriptionDetails(), project);
             List<SubscriptionDetail> subscriptionDetailsUpdated;
@@ -383,7 +382,7 @@ public class SignInWindow extends AzureDialogWrapper {
             }
 
             SrvPriCreationStatusDialog d1 = SrvPriCreationStatusDialog
-                    .go(accessTokenAzureManager, tidSidsMap, destinationFolder, project);
+                .go(accessTokenAzureManager, tidSidsMap, destinationFolder, project);
             if (d1 == null) {
                 System.out.println(">> Canceled by the user");
                 return;
@@ -397,7 +396,7 @@ public class SignInWindow extends AzureDialogWrapper {
 
             authFileTextField.setText(path);
             PluginUtil.displayInfoDialog("Authentication File Created", String.format(
-                    "Your credentials have been exported to %s, please keep the authentication file safe", path));
+                "Your credentials have been exported to %s, please keep the authentication file safe", path));
         } catch (Exception ex) {
             ex.printStackTrace();
             //LOGGER.error("doCreateServicePrincipal", ex);

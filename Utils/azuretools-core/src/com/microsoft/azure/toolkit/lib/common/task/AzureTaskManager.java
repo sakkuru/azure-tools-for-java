@@ -22,11 +22,15 @@
 
 package com.microsoft.azure.toolkit.lib.common.task;
 
-import com.microsoft.azure.toolkit.lib.common.operation.AzureOperationsContext;
+import lombok.extern.java.Log;
+import rx.Emitter;
+import rx.Observable;
+import rx.observables.ConnectableObservable;
 
-import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
+@Log
 public abstract class AzureTaskManager {
 
     private static AzureTaskManager instance;
@@ -41,99 +45,138 @@ public abstract class AzureTaskManager {
         return AzureTaskManager.instance;
     }
 
-    public final void read(Runnable task) {
-        this.read(new AzureTask(task));
+    public final Observable<Void> read(Runnable task) {
+        return this.read(new AzureTask<>(task));
     }
 
-    public final void write(Runnable task) {
-        this.write(new AzureTask(task));
+    public final Observable<Void> read(String title, Runnable task) {
+        return this.read(new AzureTask<>(title, task));
     }
 
-    public final void runLater(Runnable task) {
-        this.runLater(new AzureTask(task));
+    public final <T> Observable<T> read(AzureTask<T> task) {
+        return this.runInObservable(this::doRead, task);
     }
 
-    public final void runAndWait(Runnable task) {
-        this.runAndWait(new AzureTask(task));
+    public final Observable<Void> write(Runnable task) {
+        return this.write(new AzureTask<>(task));
     }
 
-    public final void runLater(Runnable task, AzureTask.Modality modality) {
-        this.runLater(new AzureTask(task, modality));
+    public final Observable<Void> write(String title, Runnable task) {
+        return this.write(new AzureTask<>(title, task));
     }
 
-    public final void runAndWait(Runnable task, AzureTask.Modality modality) {
-        this.runAndWait(new AzureTask(task, modality));
+    public final <T> Observable<T> write(AzureTask<T> task) {
+        return this.runInObservable(this::doWrite, task);
     }
 
-    public final void read(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doRead(task);
+    public final Observable<Void> runLater(Runnable task) {
+        return this.runLater(new AzureTask<>(task));
     }
 
-    public final void write(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doWrite(task);
+    public final Observable<Void> runLater(String title, Runnable task) {
+        return this.runLater(new AzureTask<>(title, task));
     }
 
-    public final void runLater(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doRunLater(task);
+    public final Observable<Void> runLater(Runnable task, AzureTask.Modality modality) {
+        return this.runLater(new AzureTask<>(task, modality));
     }
 
-    public final void runAndWait(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doRunAndWait(task);
+    public final Observable<Void> runLater(String title, Runnable task, AzureTask.Modality modality) {
+        return this.runLater(new AzureTask<>(title, task, modality));
     }
 
-    public final void runInBackground(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doRunInBackground(task);
+    public final <T> Observable<T> runLater(AzureTask<T> task) {
+        return this.runInObservable(this::doRunLater, task);
     }
 
-    public final void runInModal(AzureTask task) {
-        final Runnable withClosure = AzureOperationsContext.deriveClosure(this.installListeners(task.getRunnable(), task));
-        task.setRunnable(withClosure);
-        this.doRunInModal(task);
+    public final Observable<Void> runAndWait(Runnable task) {
+        return this.runAndWait(new AzureTask<>(task));
     }
 
-    private Runnable installListeners(Runnable runnable, AzureTask task) {
-        return () -> {
-            try {
-                runnable.run();
-                final Runnable successListener = task.getSuccessListener();
-                if (Objects.nonNull(successListener)) {
-                    successListener.run();
+    public final Observable<Void> runAndWait(String title, Runnable task) {
+        return this.runAndWait(new AzureTask<>(title, task));
+    }
+
+    public final Observable<Void> runAndWait(Runnable task, AzureTask.Modality modality) {
+        return this.runAndWait(new AzureTask<>(task, modality));
+    }
+
+    public final Observable<Void> runAndWait(String title, Runnable task, AzureTask.Modality modality) {
+        return this.runAndWait(new AzureTask<>(title, task, modality));
+    }
+
+    public final <T> Observable<T> runAndWait(AzureTask<T> task) {
+        return this.runInObservable(this::doRunAndWait, task);
+    }
+
+    public final Observable<Void> runInBackground(String title, Runnable task) {
+        return this.runInBackground(new AzureTask<>(title, task));
+    }
+
+    public final <T> Observable<T> runInBackground(String title, Supplier<T> task) {
+        return this.runInBackground(new AzureTask<>(title, task));
+    }
+
+    public final Observable<Void> runInBackground(String title, boolean cancellable, Runnable task) {
+        return this.runInBackground(new AzureTask<>(null, title, cancellable, task));
+    }
+
+    public final <T> Observable<T> runInBackground(String title, boolean cancellable, Supplier<T> task) {
+        return this.runInBackground(new AzureTask<>(null, title, cancellable, task));
+    }
+
+    public final <T> Observable<T> runInBackground(AzureTask<T> task) {
+        return this.runInObservable(this::doRunInBackground, task);
+    }
+
+    public final Observable<Void> runInModal(String title, Runnable task) {
+        return this.runInModal(new AzureTask<>(title, task));
+    }
+
+    public final <T> Observable<T> runInModal(String title, Supplier<T> task) {
+        return this.runInModal(new AzureTask<>(title, task));
+    }
+
+    public final Observable<Void> runInModal(String title, boolean cancellable, Runnable task) {
+        return this.runInModal(new AzureTask<>(null, title, cancellable, task));
+    }
+
+    public final <T> Observable<T> runInModal(String title, boolean cancellable, Supplier<T> task) {
+        return this.runInModal(new AzureTask<>(null, title, cancellable, task));
+    }
+
+    public final <T> Observable<T> runInModal(AzureTask<T> task) {
+        return this.runInObservable(this::doRunInModal, task);
+    }
+
+    private <T> ConnectableObservable<T> runInObservable(final BiConsumer<? super Runnable, ? super AzureTask<T>> consumer, final AzureTask<T> task) {
+        final ConnectableObservable<T> observable = Observable.create((Emitter<T> emitter) -> {
+            final AzureTaskContext.Node context = AzureTaskContext.current().derive();
+            task.setContext(context); // set for temp usage.
+            final Runnable t = () -> AzureTaskContext.run(() -> {
+                try {
+                    // log.info(String.format("doing task[%s] in thread[%s]/context[%s]", task.getTitle(), Thread.currentThread().getId(), context));
+                    emitter.onNext(task.getSupplier().get());
+                    emitter.onCompleted();
+                } catch (final Throwable e) {
+                    emitter.onError(e);
                 }
-            } catch (final Throwable e) {
-                final Consumer<Throwable> errorListener = task.getErrorListener();
-                if (Objects.nonNull(errorListener)) {
-                    errorListener.accept(e);
-                } else {
-                    throw e;
-                }
-            } finally {
-                final Runnable finishedListener = task.getFinishedListener();
-                if (Objects.nonNull(finishedListener)) {
-                    finishedListener.run();
-                }
-            }
-        };
+            }, context);
+            consumer.accept(t, task);
+        }, Emitter.BackpressureMode.BUFFER).publish();
+        observable.connect();
+        return observable;
     }
 
-    protected abstract void doRead(AzureTask task);
+    protected abstract void doRead(Runnable runnable, AzureTask<?> task);
 
-    protected abstract void doWrite(AzureTask task);
+    protected abstract void doWrite(Runnable runnable, AzureTask<?> task);
 
-    protected abstract void doRunLater(AzureTask task);
+    protected abstract void doRunLater(Runnable runnable, AzureTask<?> task);
 
-    protected abstract void doRunAndWait(AzureTask task);
+    protected abstract void doRunAndWait(Runnable runnable, AzureTask<?> task);
 
-    protected abstract void doRunInBackground(AzureTask task);
+    protected abstract void doRunInBackground(Runnable runnable, AzureTask<?> task);
 
-    protected abstract void doRunInModal(AzureTask task);
+    protected abstract void doRunInModal(Runnable runnable, AzureTask<?> task);
 }
