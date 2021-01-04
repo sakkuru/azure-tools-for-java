@@ -49,6 +49,7 @@ import rx.Observable;
 import rx.Single;
 
 import java.util.List;
+import java.util.Objects;
 
 public class SelectSubscriptionsAction extends AzureAnAction {
     private static final Logger LOGGER = Logger.getInstance(SelectSubscriptionsAction.class);
@@ -77,8 +78,6 @@ public class SelectSubscriptionsAction extends AzureAnAction {
     }
 
     public static Single<List<SubscriptionDetail>> selectSubscriptions(Project project) {
-        //Project project = ProjectManager.getInstance().getDefaultProject();();
-
         final AuthMethodManager authMethodManager = AuthMethodManager.getInstance();
         final AzureManager manager = authMethodManager.getAzureManager();
         if (manager == null) {
@@ -95,10 +94,8 @@ public class SelectSubscriptionsAction extends AzureAnAction {
 
     private static Observable<List<SubscriptionDetail>> selectSubscriptions(final Project project, final SubscriptionManager subscriptionManager) {
         return AzureTaskManager.getInstance().runLater(new AzureTask<>(() -> {
-            //System.out.println("onShowSubscriptions: calling getSubscriptionDetails()");
             SubscriptionsDialog d = SubscriptionsDialog.go(subscriptionManager.getSubscriptionDetails(), project);
-            List<SubscriptionDetail> subscriptionDetailsUpdated;
-            return d != null ? d.getSubscriptionDetails() : null;
+            return Objects.nonNull(d) ? d.getSubscriptionDetails() : null;
         }));
     }
 
@@ -106,7 +103,6 @@ public class SelectSubscriptionsAction extends AzureAnAction {
     public static Observable<List<SubscriptionDetail>> loadSubscriptions(final SubscriptionManager subscriptionManager, Project project) {
         return AzureTaskManager.getInstance().runInModal(new AzureTask<>(project, "Loading Subscriptions...", true, () -> {
             ProgressManager.getInstance().getProgressIndicator().setIndeterminate(true);
-            //System.out.println("updateSubscriptionWithProgressDialog: calling getSubscriptionDetails()");
             EventUtil.executeWithLog(TelemetryConstants.ACCOUNT, TelemetryConstants.GET_SUBSCRIPTIONS, (operation) -> {
                 return subscriptionManager.getSubscriptionDetails();
             }, AzureExceptionHandler::onUncaughtException);
