@@ -384,7 +384,6 @@ public class IDEHelperImpl implements IDEHelper {
         final VirtualFile virtualFile = getOrCreateVirtualFile(target, fileEditorManager);
         final OutputStream output = virtualFile.getOutputStream(null);
         final String failure = String.format("Can not open file %s. Try downloading it first and open it manually.", virtualFile.getName());
-        final String failureFileDeleted = String.format("Target file %s has been deleted", target.getName());
         final String title = String.format("Opening file %s...", virtualFile.getName());
         final AzureTask<Void> task = new AzureTask<>(null, title, true, () -> {
             final ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
@@ -392,6 +391,7 @@ public class IDEHelperImpl implements IDEHelper {
             indicator.setText2("Checking file existence");
             final AppServiceFile file = fileService.getFileByPath(target.getPath());
             if (file == null) {
+                final String failureFileDeleted = String.format("Target file %s has been deleted", target.getName());
                 UIUtil.invokeLaterIfNeeded(() -> Messages.showWarningDialog(failureFileDeleted, "Open File"));
                 return;
             }
