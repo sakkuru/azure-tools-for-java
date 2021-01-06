@@ -53,7 +53,8 @@ public class DeploymentSlotModule extends AzureRefreshableNode implements Deploy
 
     @Override
     public @Nullable AzureIconSymbol getIconSymbol() {
-        return AzureIconSymbol.DeploymentSlot.MODULE;
+        boolean isLinux = "Linux".equalsIgnoreCase(webapp.operatingSystem().toString());
+        return isLinux ? AzureIconSymbol.DeploymentSlot.MODULE_ON_LINUX : AzureIconSymbol.DeploymentSlot.MODULE;
     }
 
     @Override

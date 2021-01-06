@@ -71,7 +71,7 @@ public class MySQLNode extends Node {
         addAction(new StopAction().asGenericListener(AzureActionEnum.STOP));
         addAction(new RestartAction().asGenericListener(AzureActionEnum.RESTART));
         addAction(new DeleteAction().asGenericListener(AzureActionEnum.DELETE));
-        addAction(new OpenInBrowserAction().asGenericListener(AzureActionEnum.OPEN_IN_PORTAL));
+        addAction(new OpenInPortalAction().asGenericListener(AzureActionEnum.OPEN_IN_PORTAL));
         addAction(new ShowPropertiesAction().asGenericListener(AzureActionEnum.SHOW_PROPERTIES));
         initActions();
     }
@@ -180,8 +180,8 @@ public class MySQLNode extends Node {
         }
     }
 
-    // Open in browser action class
-    private class OpenInBrowserAction extends NodeActionListener implements Backgroundable, Telemetrable {
+    // Open in portal action class
+    private class OpenInPortalAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
@@ -200,16 +200,11 @@ public class MySQLNode extends Node {
     }
 
     // Show Properties
-    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable, Telemetrable {
+    private class ShowPropertiesAction extends NodeActionListener implements Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
             DefaultLoader.getUIHelper().openMySQLPropertyView(MySQLNode.this);
-        }
-
-        @Override
-        public String getProgressMessage() {
-            return Node.getProgressMessage(AzureActionEnum.SHOW_PROPERTIES.getDoingName(), MySQLModule.MODULE_NAME, MySQLNode.this.name);
         }
 
         @Override

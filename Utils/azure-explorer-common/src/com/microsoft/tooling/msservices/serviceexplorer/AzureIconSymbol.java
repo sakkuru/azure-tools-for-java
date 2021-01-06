@@ -87,6 +87,7 @@ public final class AzureIconSymbol {
     public interface DeploymentSlot {
 
         AzureIconSymbol MODULE = fillInPath("DeploymentSlot/DeploymentSlot.svg");
+        AzureIconSymbol MODULE_ON_LINUX = fillInPath("DeploymentSlot/DeploymentSlotOnLinux.svg");
 
         AzureIconSymbol RUNNING = fillInPath("DeploymentSlot/DeploymentSlotRunning.svg");
         AzureIconSymbol STOPPED = fillInPath("DeploymentSlot/DeploymentSlotStopped.svg");

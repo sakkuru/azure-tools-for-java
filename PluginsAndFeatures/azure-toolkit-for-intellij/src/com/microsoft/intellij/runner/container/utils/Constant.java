@@ -29,7 +29,7 @@ public class Constant {
     public static final String CONSOLE_NAME = "AzureToolsConsole";
     public static final String DOCKERFILE_FOLDER = ".";
     public static final String DOCKERFILE_NAME = "Dockerfile";
-    public static final String TOMCAT_SERVICE_PORT = "8080";
+    public static final String TOMCAT_SERVICE_PORT = "80";
     public static final String IMAGE_PREFIX = "local/tomcat";
     public static final String MESSAGE_INSTRUCTION = "(Set the DOCKER_HOST environment variable to connect elsewhere."
             + "Set the DOCKER_CERT_PATH variable to connect TLS-enabled daemon.)";

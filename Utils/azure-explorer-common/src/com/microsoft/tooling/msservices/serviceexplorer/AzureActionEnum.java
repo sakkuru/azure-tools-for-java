@@ -30,6 +30,7 @@ public enum AzureActionEnum {
     CREATE("Create", "Creating", AzureIconSymbol.Common.CREATE, Groupable.DEFAULT_GROUP, Sortable.HIGH_PRIORITY + 2),
 
     OPEN_IN_PORTAL("Open In Portal", "Opening", AzureIconSymbol.Common.OPEN_IN_PORTAL, Groupable.DEFAULT_GROUP, Sortable.HIGH_PRIORITY + 10),
+    OPEN_IN_BROWSER("Open In Browser", "Opening", AzureIconSymbol.Common.OPEN_IN_PORTAL, Groupable.DEFAULT_GROUP, Sortable.HIGH_PRIORITY + 11),
     SHOW_PROPERTIES("Show Properties", "Loading", AzureIconSymbol.Common.SHOW_PROPERTIES),
 
     START("Start", "Starting", AzureIconSymbol.Common.START, Groupable.MAINTENANCE_GROUP, Sortable.DEFAULT_PRIORITY + 1),

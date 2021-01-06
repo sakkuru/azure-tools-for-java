@@ -28,7 +28,6 @@ import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.App
 import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.DeploymentResourceInner;
 import com.microsoft.azuretools.core.mvp.model.springcloud.AzureSpringCloudMvpModel;
 import com.microsoft.azuretools.core.mvp.model.springcloud.SpringCloudIdHelper;
-import com.microsoft.azuretools.core.mvp.ui.base.MvpPresenter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -39,29 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class SpringCloudAppNodePresenter<V extends SpringCloudAppNodeView> extends MvpPresenter<V> {
-    private static final Logger LOGGER = Logger.getLogger(SpringCloudAppNodePresenter.class.getName());
-    private static final String FAILED_TO_STOP_APP = "Failed to refresh Spring Cloud App: %s";
-
-    public void onStartSpringCloudApp(String appId, String activeDeploymentName, DeploymentResourceStatus originalStatus) {
-        AzureSpringCloudMvpModel.startApp(appId, activeDeploymentName).await();
-        waitUntilStatusChanged(appId, originalStatus);
-    }
-
-    public void onStopSpringCloudApp(String appId, String activeDeploymentName, DeploymentResourceStatus originalStatus) {
-        AzureSpringCloudMvpModel.stopApp(appId, activeDeploymentName).await();
-        waitUntilStatusChanged(appId, originalStatus);
-    }
-
-    public void onReStartSpringCloudApp(String appId, String activeDeploymentName, DeploymentResourceStatus originalStatus) {
-        AzureSpringCloudMvpModel.restartApp(appId, activeDeploymentName).await();
-        waitUntilStatusChanged(appId, originalStatus);
-    }
-
-    public void onDeleteApp(final String appId) {
-        AzureSpringCloudMvpModel.deleteApp(appId).await();
-        waitUntilStatusChanged(appId, null);
-    }
+public class SpringCloudMonitorUtil {
+    private static final Logger LOGGER = Logger.getLogger(SpringCloudMonitorUtil.class.getName());
 
     public static void awaitAndMonitoringStatus(String appId, DeploymentResourceStatus originalStatus) {
         String clusterId = getParentSegment(appId);
@@ -96,10 +74,6 @@ public class SpringCloudAppNodePresenter<V extends SpringCloudAppNodeView> exten
             LOGGER.log(Level.SEVERE, String.format("Failed to get the spring cloud app status for app: %s.", SpringCloudIdHelper
                     .getAppName(appId)), e);
         }
-    }
-
-    private void waitUntilStatusChanged(String appId, DeploymentResourceStatus originalStatus) {
-        awaitAndMonitoringStatus(appId, originalStatus);
     }
 
     private static String getParentSegment(String id) {

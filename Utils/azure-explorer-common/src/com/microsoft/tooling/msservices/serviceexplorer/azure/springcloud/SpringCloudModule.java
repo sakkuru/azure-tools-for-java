@@ -38,6 +38,8 @@ public class SpringCloudModule extends AzureRefreshableNode implements SpringClo
     private static final String BASE_MODULE_NAME = "Spring Cloud(Preview)";
     private final SpringCloudModulePresenter<SpringCloudModule> springCloudModulePresenter;
 
+    public static final String MODULE_NAME = "Spring Cloud";
+
     public SpringCloudModule(final Node parent) {
         super(SPRING_SERVICE_MODULE_ID, BASE_MODULE_NAME, parent, ICON_FILE);
         springCloudModulePresenter = new SpringCloudModulePresenter<>();

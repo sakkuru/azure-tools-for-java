@@ -28,12 +28,14 @@ import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.core.mvp.model.function.AzureFunctionMvpModel;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.RefreshableNode;
+import org.apache.commons.collections4.CollectionUtils;
 
 public class FunctionsNode extends RefreshableNode {
 
     private static final String ID = FunctionsNode.class.getName();
     private static final String NAME = "Functions";
     private static final String ICON_PATH = "azure-functions-small.png";
+    private static final String EMPTY_POSTFIX = " (Empty)";
 
     private FunctionApp functionApp;
     private String subscriptionId;
@@ -56,6 +58,11 @@ public class FunctionsNode extends RefreshableNode {
                 .stream()
                 .map(envelope -> new FunctionNode(envelope, this))
                 .forEach(this::addChildNode);
+        if (CollectionUtils.isEmpty(childNodes)) {
+            setName(NAME + EMPTY_POSTFIX);
+        } else {
+            setName(NAME);
+        }
     }
 
     @Override

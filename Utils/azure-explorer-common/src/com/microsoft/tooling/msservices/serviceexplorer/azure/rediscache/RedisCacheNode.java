@@ -23,7 +23,6 @@
 package com.microsoft.tooling.msservices.serviceexplorer.azure.rediscache;
 
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
-import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.core.mvp.ui.base.NodeContent;
 import com.microsoft.azuretools.telemetry.AppInsightsConstants;
@@ -32,12 +31,9 @@ import com.microsoft.azuretools.telemetry.TelemetryProperties;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureActionEnum;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureIconSymbol;
-import com.microsoft.tooling.msservices.serviceexplorer.Groupable;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
-import com.microsoft.tooling.msservices.serviceexplorer.Sortable;
-import com.microsoft.tooling.msservices.serviceexplorer.azure.AzureNodeActionPromptListener;
 import com.microsoft.tooling.msservices.serviceexplorer.listener.Backgroundable;
 import com.microsoft.tooling.msservices.serviceexplorer.listener.Promptable;
 import com.microsoft.tooling.msservices.serviceexplorer.listener.Telemetrable;
@@ -45,9 +41,6 @@ import lombok.Lombok;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import static com.microsoft.azuretools.telemetry.TelemetryConstants.DELETE_REDIS;
-import static com.microsoft.azuretools.telemetry.TelemetryConstants.REDIS;
 
 public class RedisCacheNode extends Node implements TelemetryProperties {
 
@@ -103,51 +96,6 @@ public class RedisCacheNode extends Node implements TelemetryProperties {
         boolean running = RUNNING_STATE.equalsIgnoreCase(provisionState);
         boolean stopped = STOPPED_STATE.equalsIgnoreCase(provisionState);
         return running ? AzureIconSymbol.RedisCache.RUNNING : !stopped ? AzureIconSymbol.RedisCache.UPDATING : AzureIconSymbol.RedisCache.STOPPED;
-    }
-
-    // Show property action class
-    private class ShowRedisCachePropertyAction extends NodeActionListener {
-
-        @Override
-        protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
-            DefaultLoader.getUIHelper().openRedisPropertyView(RedisCacheNode.this);
-        }
-    }
-
-    // Delete Redis Cache action class
-    private class DeleteRedisCacheAction extends AzureNodeActionPromptListener {
-        public DeleteRedisCacheAction() {
-            super(RedisCacheNode.this, String.format(DELETE_CONFIRM_DIALOG_FORMAT, RedisCacheNode.this.name),
-                    DELETE_CONFIRM_TITLE);
-        }
-
-        @Override
-        protected void azureNodeAction(NodeActionEvent e) throws AzureCmdException {
-        }
-
-        @Override
-        protected void onSubscriptionsChanged(NodeActionEvent e) throws AzureCmdException {
-        }
-
-        @Override
-        protected String getServiceName(NodeActionEvent event) {
-            return REDIS;
-        }
-
-        @Override
-        protected String getOperationName(NodeActionEvent event) {
-            return DELETE_REDIS;
-        }
-
-        @Override
-        public int getPriority() {
-            return Sortable.LOW_PRIORITY;
-        }
-
-        @Override
-        public int getGroup() {
-            return Groupable.MAINTENANCE_GROUP;
-        }
     }
 
     @Override
@@ -226,16 +174,11 @@ public class RedisCacheNode extends Node implements TelemetryProperties {
     }
 
     // Show Properties
-    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable, Telemetrable {
+    private class ShowPropertiesAction extends NodeActionListener implements Telemetrable {
 
         @Override
         protected void actionPerformed(NodeActionEvent e) {
             DefaultLoader.getUIHelper().openRedisPropertyView(RedisCacheNode.this);
-        }
-
-        @Override
-        public String getProgressMessage() {
-            return Node.getProgressMessage(AzureActionEnum.SHOW_PROPERTIES.getDoingName(), RedisCacheModule.MODULE_NAME, RedisCacheNode.this.name);
         }
 
         @Override

@@ -95,7 +95,7 @@ public class WebAppNode extends WebAppBaseNode implements WebAppNodeView {
         addAction(new StartAction().asGenericListener(AzureActionEnum.START));
         addAction(new RestartAction().asGenericListener(AzureActionEnum.RESTART));
         addAction(new DeleteAction().asGenericListener(AzureActionEnum.DELETE));
-        addAction(new OpenInPortalAction().asGenericListener(AzureActionEnum.OPEN_IN_PORTAL));
+        addAction(new OpenInBrowserAction().asGenericListener(AzureActionEnum.OPEN_IN_BROWSER));
         addAction(new ShowPropertiesAction().asGenericListener(AzureActionEnum.SHOW_PROPERTIES));
         super.loadActions();
     }
@@ -222,7 +222,7 @@ public class WebAppNode extends WebAppBaseNode implements WebAppNodeView {
     }
 
     // Open in browser action class
-    private class OpenInPortalAction extends NodeActionListener implements Backgroundable, Telemetrable {
+    private class OpenInBrowserAction extends NodeActionListener implements Backgroundable, Telemetrable {
 
         @AzureOperation(value = "open web app in local browser", type = AzureOperation.Type.ACTION)
         @Override
@@ -232,28 +232,23 @@ public class WebAppNode extends WebAppBaseNode implements WebAppNodeView {
 
         @Override
         public String getProgressMessage() {
-            return Node.getProgressMessage(AzureActionEnum.OPEN_IN_PORTAL.getDoingName(), MySQLModule.MODULE_NAME, WebAppNode.this.name);
+            return Node.getProgressMessage(AzureActionEnum.OPEN_IN_BROWSER.getDoingName(), MySQLModule.MODULE_NAME, WebAppNode.this.name);
         }
 
         @Override
         public TelemetryParameter getTelemetryParameter() {
-            return TelemetryParameter.WebApp.OPEN_IN_PORTAL;
+            return TelemetryParameter.WebApp.OPEN_IN_BROWSER;
         }
     }
 
     // Show properties
-    private class ShowPropertiesAction extends NodeActionListener implements Backgroundable, Telemetrable {
+    private class ShowPropertiesAction extends NodeActionListener implements Telemetrable {
 
         @AzureOperation(value = "show properties of web app", type = AzureOperation.Type.ACTION)
         @Override
         protected void actionPerformed(NodeActionEvent e) {
             DefaultLoader.getUIHelper().openWebAppPropertyView(WebAppNode.this);
 
-        }
-
-        @Override
-        public String getProgressMessage() {
-            return Node.getProgressMessage(AzureActionEnum.SHOW_PROPERTIES.getDoingName(), MySQLModule.MODULE_NAME, WebAppNode.this.name);
         }
 
         @Override
