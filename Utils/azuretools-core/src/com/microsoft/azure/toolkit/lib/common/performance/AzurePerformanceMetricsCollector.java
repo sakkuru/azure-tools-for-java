@@ -120,7 +120,8 @@ public class AzurePerformanceMetricsCollector {
 
     @SneakyThrows
     private static void sendTelemetry(final Map<String, String> properties) {
-        AppInsightsClient.create(PERFORMANCE, null, properties);
+//        AppInsightsClient.create(PERFORMANCE, null, properties);
+        writeToCsvFile(properties);
     }
 
     private static void writeToCsvFile(Map<String, String> properties) throws IOException {

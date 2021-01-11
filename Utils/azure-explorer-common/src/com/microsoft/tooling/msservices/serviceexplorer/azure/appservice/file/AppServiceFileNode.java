@@ -25,7 +25,6 @@ package com.microsoft.tooling.msservices.serviceexplorer.azure.appservice.file;
 import com.microsoft.azure.toolkit.lib.appservice.file.AppServiceFile;
 import com.microsoft.azure.toolkit.lib.appservice.file.AppServiceFileService;
 import com.microsoft.azure.toolkit.lib.common.operation.AzureOperation;
-import com.microsoft.azure.toolkit.lib.common.task.AzureTask;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTaskManager;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureRefreshableNode;
@@ -76,26 +75,25 @@ public class AppServiceFileNode extends AzureRefreshableNode {
             return;
         }
         this.fileService.getFilesInDirectory(this.file.getPath()).stream()
-                        .map(file -> new AppServiceFileNode(file, this, fileService))
-                        .forEach(this::addChildNode);
-    }
-
-    @AzureOperation(name = "open file in editor", type = AzureOperation.Type.ACTION)
-    private void open(final Object context) {
-        DefaultLoader.getIdeHelper().openAppServiceFile(this.file, context);
+            .map(file -> new AppServiceFileNode(file, this, fileService))
+            .forEach(this::addChildNode);
     }
 
     @Override
     public void onNodeDblClicked(Object context) {
-        if (this.file.getType() == AppServiceFile.Type.DIRECTORY) {
+        this.openFileInEditor(context, this.file);
+    }
+
+    @AzureOperation(name = "open file in editor", type = AzureOperation.Type.ACTION)
+    public void openFileInEditor(Object context, AppServiceFile file) {
+        if (file.getType() == AppServiceFile.Type.DIRECTORY) {
             return;
-        } else if (this.file.getSize() > SIZE_20MB) {
+        } else if (file.getSize() > SIZE_20MB) {
             DefaultLoader.getUIHelper().showError("File is too large, please download it first", "File is Too Large");
             return;
         }
-        final Runnable runnable = () -> open(context);
-        final String message = String.format("fetching file (%s)...", this.file.getName());
-        AzureTaskManager.getInstance().runInBackground(new AzureTask(this.getProject(), message, false, runnable));
+        final Runnable open = () -> DefaultLoader.getIdeHelper().openAppServiceFile(file, context);
+        AzureTaskManager.getInstance().runLater(open);
     }
 
     @Override
@@ -111,7 +109,7 @@ public class AppServiceFileNode extends AzureRefreshableNode {
     @Override
     public String getToolTip() {
         return file.getType() == AppServiceFile.Type.DIRECTORY ?
-               String.format("Type: %s Date modified: %s", file.getMime(), file.getMtime()) :
-               String.format("Type: %s Size: %s Date modified: %s", file.getMime(), FileUtils.byteCountToDisplaySize(file.getSize()), file.getMtime());
+            String.format("Type: %s Date modified: %s", file.getMime(), file.getMtime()) :
+            String.format("Type: %s Size: %s Date modified: %s", file.getMime(), FileUtils.byteCountToDisplaySize(file.getSize()), file.getMtime());
     }
 }

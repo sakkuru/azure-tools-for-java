@@ -380,62 +380,81 @@ public class IDEHelperImpl implements IDEHelper {
     @SneakyThrows
     public void openAppServiceFile(final AppServiceFile target, Object context) {
         final AppServiceFileService fileService = AppServiceFileService.forApp(target.getApp());
-        final FileEditorManager fileEditorManager = FileEditorManager.getInstance((Project) context);
-        final VirtualFile virtualFile = getOrCreateVirtualFile(target, fileEditorManager);
-        final OutputStream output = virtualFile.getOutputStream(null);
-        final String failure = String.format("Can not open file (%s). Try downloading it first and open it manually.", virtualFile.getName());
-        final String title = String.format("Opening file (%s)...", virtualFile.getName());
+        final FileEditorManager manager = FileEditorManager.getInstance((Project) context);
+        final VirtualFile vFile = getOrCreateVirtualFile(target, manager);
+        final OutputStream output = vFile.getOutputStream(null);
+        final String title = String.format("Opening file (%s)...", vFile.getName());
         final AzureTask<Void> task = new AzureTask<>(null, title, false, () -> {
             final ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
             indicator.setIndeterminate(true);
             indicator.setText2("Checking file existence");
-            final AppServiceFile file = fileService.getFileByPath(target.getPath());
-            if (file == null) {
-                final String failureFileDeleted = String.format("Target file (%s) has been deleted", target.getName());
-                UIUtil.invokeLaterIfNeeded(() -> Messages.showWarningDialog(failureFileDeleted, "Open File"));
-                return;
-            }
-            indicator.setText2("Loading file content");
-            fileService
-                .getFileContent(file.getPath())
-                .doOnCompleted(() -> AzureTaskManager.getInstance().runLater(() -> {
-                    if (!openFileInEditor(file, virtualFile, fileEditorManager)) {
-                        Messages.showWarningDialog(failure, "Open File");
-                    }
-                }, AzureTask.Modality.NONE))
-                .doOnTerminate(() -> IOUtils.closeQuietly(output, null))
-                .subscribe(bytes -> {
-                    try {
-                        IOUtils.write(bytes, output);
-                    } catch (final IOException e) {
-                        final String error = "failed to load data into editor";
-                        final String action = "try later or downloading it first";
-                        throw new AzureToolkitRuntimeException(error, e, action);
-                    }
-                }, AzureExceptionHandler::onRxException);
+            this.checkExistence(target, fileService).ifPresent((file) -> {
+                indicator.setText2("Loading file content");
+                fileService
+                    .getFileContent(file.getPath())
+                    .doOnCompleted(() -> AzureTaskManager.getInstance().runLater(() -> openFileInEditor(file, vFile, manager), AzureTask.Modality.NONE))
+                    .doOnTerminate(() -> IOUtils.closeQuietly(output, null))
+                    .subscribe(bytes -> writeContentToEditor(output, bytes), AzureExceptionHandler::onRxException);
+            });
         });
         AzureTaskManager.getInstance().runInModal(task);
     }
 
-    private boolean openFileInEditor(final AppServiceFile appServiceFile, VirtualFile virtualFile, FileEditorManager fileEditorManager) {
+    @AzureOperation(
+        value = "load content of file[%s] into editor",
+        params = {"$target.getName()"},
+        type = AzureOperation.Type.TASK
+    )
+    private void writeContentToEditor(final OutputStream output, final byte[] bytes) {
+        try {
+            IOUtils.write(bytes, output);
+        } catch (final IOException e) {
+            final String error = "failed to load file content into editor";
+            final String action = "try later or downloading it first";
+            throw new AzureToolkitRuntimeException(error, e, action);
+        }
+    }
+
+    @AzureOperation(
+        value = "check the existence of file[%s]",
+        params = {"$target.getName()"},
+        type = AzureOperation.Type.TASK
+    )
+    private Optional<AppServiceFile> checkExistence(final AppServiceFile target, final AppServiceFileService fileService) {
+        final AppServiceFile file = fileService.getFileByPath(target.getPath());
+        if (file == null) {
+            final String failureFileDeleted = String.format("Target file (%s) has been deleted", target.getName());
+            UIUtil.invokeLaterIfNeeded(() -> Messages.showWarningDialog(failureFileDeleted, "Open File"));
+        }
+        return Optional.ofNullable(file);
+    }
+
+    @AzureOperation(
+        value = "open and focus the editor of file[%s]",
+        params = {"$target.getName()"},
+        type = AzureOperation.Type.TASK
+    )
+    private void openFileInEditor(final AppServiceFile target, VirtualFile virtualFile, FileEditorManager fileEditorManager) {
         final FileEditor[] editors = fileEditorManager.openFile(virtualFile, true, true);
         if (editors.length == 0) {
-            return false;
+            final String failure = String.format("Can not open file (%s). Try downloading it first and open it manually.", virtualFile.getName());
+            Messages.showWarningDialog(failure, "Open File");
+            return;
         }
-        for (FileEditor fileEditor : editors) {
-            if (fileEditor instanceof TextEditor) {
-                final String originContent = getTextEditorContent((TextEditor) fileEditor);
-                final MessageBusConnection messageBusConnection = fileEditorManager.getProject().getMessageBus().connect(fileEditor);
+        for (final FileEditor editor : editors) {
+            if (editor instanceof TextEditor) {
+                final String originContent = getTextEditorContent((TextEditor) editor);
+                final MessageBusConnection messageBusConnection = fileEditorManager.getProject().getMessageBus().connect(editor);
                 messageBusConnection.subscribe(FileEditorManagerListener.Before.FILE_EDITOR_MANAGER, new FileEditorManagerListener.Before() {
                     @Override
                     public void beforeFileClosed(FileEditorManager source, VirtualFile file) {
                         try {
-                            final String content = getTextEditorContent((TextEditor) fileEditor);
+                            final String content = getTextEditorContent((TextEditor) editor);
                             if (file == virtualFile && !StringUtils.equals(content, originContent)) {
                                 boolean result = DefaultLoader.getUIHelper().showYesNoDialog(
-                                    fileEditor.getComponent(), SAVE_CHANGES, APP_SERVICE_FILE_EDITING, Messages.getQuestionIcon());
+                                    editor.getComponent(), SAVE_CHANGES, APP_SERVICE_FILE_EDITING, Messages.getQuestionIcon());
                                 if (result) {
-                                    saveFileToAzure(appServiceFile, content, fileEditorManager.getProject());
+                                    saveFileToAzure(target, content, fileEditorManager.getProject());
                                 }
                             }
                         } catch (RuntimeException e) {
@@ -447,7 +466,6 @@ public class IDEHelperImpl implements IDEHelper {
                 });
             }
         }
-        return true;
     }
 
     private static String getTextEditorContent(TextEditor textEditor) {
