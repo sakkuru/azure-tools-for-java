@@ -23,143 +23,123 @@
 package com.microsoft.azure.toolkit.intellij.springcloud.runner.deploy;
 
 import com.intellij.openapi.project.Project;
-import com.microsoft.azure.common.exceptions.AzureExecutionException;
-import com.microsoft.azure.management.appplatform.v2020_07_01.DeploymentInstance;
-import com.microsoft.azure.management.appplatform.v2020_07_01.DeploymentResourceStatus;
-import com.microsoft.azure.management.appplatform.v2020_07_01.UserSourceInfo;
+import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.AppPlatformManager;
 import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.AppResourceInner;
-import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.DeploymentResourceInner;
-import com.microsoft.azuretools.core.mvp.model.springcloud.AzureSpringCloudMvpModel;
+import com.microsoft.azure.toolkit.intellij.common.AzureRunProfileState;
+import com.microsoft.azure.toolkit.intellij.springcloud.SpringCloudArtifactUtils;
+import com.microsoft.azure.toolkit.lib.common.task.AzureTask;
+import com.microsoft.azure.toolkit.lib.springcloud.AzureSpringCloud;
+import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudApp;
+import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudCluster;
+import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudDeployment;
+import com.microsoft.azure.toolkit.lib.springcloud.config.SpringCloudDeploymentConfig;
+import com.microsoft.azure.toolkit.lib.springcloud.model.ScaleSettings;
+import com.microsoft.azure.tools.utils.RxUtils;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.telemetry.TelemetryConstants;
 import com.microsoft.azuretools.telemetrywrapper.Operation;
 import com.microsoft.azuretools.telemetrywrapper.TelemetryManager;
-import com.microsoft.azure.toolkit.intellij.springcloud.SpringCloudDependencyManager;
-import com.microsoft.azure.toolkit.intellij.common.AzureRunProfileState;
 import com.microsoft.intellij.RunProcessHandler;
-import com.microsoft.intellij.ui.components.AzureArtifact;
-import com.microsoft.intellij.ui.components.AzureArtifactManager;
-import com.microsoft.intellij.util.PluginUtil;
-import com.microsoft.azure.toolkit.intellij.springcloud.SpringCloudUtils;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.springcloud.SpringCloudStateManager;
-import org.apache.commons.io.FilenameUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.BooleanUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Predicate;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.stream.Collectors;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
+import static com.microsoft.azure.toolkit.lib.springcloud.AzureSpringCloudConfigUtils.DEFAULT_DEPLOYMENT_NAME;
+
+@Slf4j
 public class SpringCloudDeploymentState extends AzureRunProfileState<AppResourceInner> {
-
     private static final int GET_URL_TIMEOUT = 60;
     private static final int GET_STATUS_TIMEOUT = 180;
-    private static final String[] SPRING_ARTIFACTS = {
-        "spring-boot-starter-actuator",
-        "spring-cloud-config-client",
-        "spring-cloud-starter-netflix-eureka-client",
-        "spring-cloud-starter-zipkin",
-        "spring-cloud-starter-sleuth"
-    };
-    private static final List<DeploymentResourceStatus> DEPLOYMENT_PROCESSING_STATUS =
-            Arrays.asList(DeploymentResourceStatus.COMPILING,
-                          DeploymentResourceStatus.ALLOCATING,
-                          DeploymentResourceStatus.UPGRADING);
-    private static final String JAR = "jar";
-    private static final String MAIN_CLASS = "Main-Class";
-    private static final String SPRING_BOOT_LIB = "Spring-Boot-Lib";
-    private static final String SPRING_BOOT_AUTOCONFIGURE = "spring-boot-autoconfigure";
-    private static final String NOT_SPRING_BOOT_Artifact = "Artifact %s is not a spring-boot artifact.";
-    private static final String DEPENDENCIES_IS_NOT_UPDATED = "Azure Spring Cloud dependencies are not updated.";
-    private static final String MAIN_CLASS_NOT_FOUND =
-            "Main class cannot be found in %s, which is required for spring cloud app.";
-    private static final String AZURE_DEPENDENCIES_WARNING_TITLE =
-            "Azure dependencies are missing or incompatible";
-    private static final String DEPENDENCY_WARNING = "Azure dependencies are missing or incompatible, you "
-            + "may update the dependencies by Azure -> Add Azure Spring Cloud dependency on project context menu.\n";
+    private static final String UPDATE_APP_WARNING = "It may take some moments for the configuration to be applied at server side!";
+    private static final String GET_DEPLOYMENT_STATUS_TIMEOUT = "Deployment succeeded but the app is still starting, " +
+        "you can check the app status from Azure Portal.";
 
-    private final SpringCloudDeployConfiguration springCloudDeployConfiguration;
+    private final SpringCloudDeployConfiguration config;
 
-    /**
-     * Place to execute the Web App deployment task.
-     */
-    public SpringCloudDeploymentState(Project project, SpringCloudDeployConfiguration springCloudDeployConfiguration) {
+    public SpringCloudDeploymentState(Project project, SpringCloudDeployConfiguration configuration) {
         super(project);
-        this.springCloudDeployConfiguration = springCloudDeployConfiguration;
+        this.config = configuration;
     }
 
     @Nullable
     @Override
-    public AppResourceInner executeSteps(@NotNull RunProcessHandler processHandler
-            , @NotNull Map<String, String> telemetryMap) throws Exception {
+    public AppResourceInner executeSteps(@NotNull RunProcessHandler processHandler, @NotNull Map<String, String> telemetryMap) throws Exception {
         // prepare the jar to be deployed
         updateTelemetryMap(telemetryMap);
-        if (StringUtils.isEmpty(springCloudDeployConfiguration.getArtifactIdentifier())) {
-            throw new AzureExecutionException("You must specify an artifact");
+        final File artifact = SpringCloudArtifactUtils.getArtifact(config.getArtifactIdentifier(), project);
+        final boolean enableDisk = config.getDeployment() != null && config.getDeployment().isEnablePersistentStorage();
+        final String clusterName = config.getClusterName();
+        final String clusterId = config.getClusterId();
+        final String appName = config.getAppName();
+
+        final SpringCloudDeploymentConfig deploymentConfig = config.getDeployment();
+        final Map<String, String> env = deploymentConfig.getEnvironment();
+        final String jvmOptions = deploymentConfig.getJvmOptions();
+        final ScaleSettings scaleSettings = deploymentConfig.getScaleSettings();
+        final String runtimeVersion = deploymentConfig.getJavaVersion();
+        final String deploymentName = Optional.ofNullable(deploymentConfig.getDeploymentName()).orElse(DEFAULT_DEPLOYMENT_NAME);
+
+        final AzureSpringCloud az = AzureSpringCloud.az(this.getAppPlatformManager());
+        final SpringCloudCluster cluster = az.cluster(clusterName);
+        final SpringCloudApp app = cluster.app(appName);
+        final SpringCloudDeployment deployment = app.deployment(deploymentName);
+
+        final boolean toCreateApp = !app.exists();
+        final boolean toCreateDeployment = !deployment.exists();
+
+        final List<AzureTask<?>> tasks = new ArrayList<>();
+        if (toCreateApp) {
+            log.info("Creating app({})...", appName);
+            app.create().commit();
+            SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), null);
+            log.info("Successfully created the app.");
+        }
+        log.info("Uploading artifact({}) to Azure...", artifact.getPath());
+        final SpringCloudApp.Uploader artifactUploader = app.uploadArtifact(artifact.getPath());
+        artifactUploader.commit();
+        log.info("Successfully uploaded the artifact.");
+
+        final SpringCloudDeployment.Updater deploymentModifier = (toCreateDeployment ? deployment.create() : deployment.update())
+            .configEnvironmentVariables(env)
+            .configJvmOptions(jvmOptions)
+            .configScaleSettings(scaleSettings)
+            .configRuntimeVersion(runtimeVersion)
+            .configArtifact(artifactUploader.getArtifact());
+        log.info(toCreateDeployment ? "Creating deployment({})..." : "Updating deployment({})...", deploymentName);
+        deploymentModifier.commit();
+        log.info(toCreateDeployment ? "Successfully created the deployment" : "Successfully updated the deployment");
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), deployment.entity().getInner());
+
+        final SpringCloudApp.Updater appUpdater = app.update()
+            .activate(Optional.ofNullable(config.getActiveDeploymentName()).orElse(deploymentName))
+            .setPublic(config.isPublic())
+            .enablePersistentDisk(enableDisk);
+        if (!appUpdater.isSkippable()) {
+            log.info("Updating app({})...", appName);
+            appUpdater.commit();
+            log.info("Successfully updated the app.");
+            log.warn(UPDATE_APP_WARNING);
         }
 
-        AzureArtifact artifact =
-                AzureArtifactManager.getInstance(project).getAzureArtifactById(springCloudDeployConfiguration.getArtifactIdentifier());
-        if (Objects.isNull(artifact)) {
-            throw new AzureExecutionException(String.format("The artifact '%s' you selected doesn't exists",
-                                                            springCloudDeployConfiguration.getArtifactIdentifier()));
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), deployment.entity().getInner());
+        if (!deployment.waitUntilReady(GET_STATUS_TIMEOUT)) {
+            log.warn(GET_DEPLOYMENT_STATUS_TIMEOUT);
         }
-        String finalJarName = AzureArtifactManager.getInstance(project).getFileForDeployment(artifact);
-        if (!Files.exists(Paths.get(finalJarName))) {
-            throw new AzureExecutionException(String.format("File '%s' cannot be found.",
-                                                            finalJarName));
-        }
-        validateSpringCloudAppArtifact(finalJarName);
-        // get or create spring cloud app
-        setText(processHandler, "Creating/Updating spring cloud app...");
-        final AppResourceInner appResourceInner = SpringCloudUtils.createOrUpdateSpringCloudApp(springCloudDeployConfiguration);
-        String clusterId = springCloudDeployConfiguration.getClusterId();
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, appResourceInner, null);
-        setText(processHandler, "Create/Update spring cloud app succeed.");
-        // upload artifact to correspond storage
-        setText(processHandler, "Uploading artifact to storage...");
-        final UserSourceInfo userSourceInfo = SpringCloudUtils.deployArtifact(springCloudDeployConfiguration, finalJarName);
-        setText(processHandler, "Upload artifact succeed.");
-        // get or create active deployment
-        setText(processHandler, "Creating/Updating deployment...");
-        final DeploymentResourceInner deploymentResourceInner = SpringCloudUtils.createOrUpdateDeployment(
-                springCloudDeployConfiguration,
-                userSourceInfo);
-        setText(processHandler, "Create/Update deployment succeed.");
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, appResourceInner
-                , deploymentResourceInner);
-        // update spring cloud properties (enable public access)
-        setText(processHandler, "Activating deployment...");
-        AppResourceInner newApps = SpringCloudUtils.activeDeployment(appResourceInner,
-                                                                     deploymentResourceInner,
-                                                                     springCloudDeployConfiguration);
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, newApps, deploymentResourceInner);
-        AzureSpringCloudMvpModel.startApp(newApps.id(), newApps.properties().activeDeploymentName()).await();
-        // Waiting until instances start
-        DeploymentResourceInner newDeploymentResourceInner = getDeploymentStatus(newApps.id(), processHandler);
-
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, newApps, newDeploymentResourceInner);
-
-        if (newApps.properties().publicProperty()) {
-            getUrl(newApps.id(), processHandler);
-        }
-        setText(processHandler, "Deployment done.");
-        return newApps;
+        printPublicUrl(app);
+        return app.entity().getInner();
     }
 
     @Override
     protected Operation createOperation() {
-        return TelemetryManager.createOperation(TelemetryConstants.SPRING_CLOUD,
-                                                TelemetryConstants.CREATE_SPRING_CLOUD_APP);
+        return TelemetryManager.createOperation(TelemetryConstants.SPRING_CLOUD, TelemetryConstants.CREATE_SPRING_CLOUD_APP);
     }
 
     @Override
@@ -175,142 +155,26 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
 
     @Override
     protected void updateTelemetryMap(@NotNull Map<String, String> telemetryMap) {
-        telemetryMap.putAll(springCloudDeployConfiguration.getModel().getTelemetryProperties());
+        telemetryMap.putAll(config.getModel().getTelemetryProperties());
     }
 
-    private void validateSpringCloudAppArtifact(String finalJar) throws AzureExecutionException, IOException {
-        final JarFile jarFile = new JarFile(finalJar);
-        final Attributes manifestAttributes = jarFile.getManifest().getMainAttributes();
-        final String mainClass = manifestAttributes.getValue(MAIN_CLASS);
-        if (StringUtils.isEmpty(mainClass)) {
-            throw new SpringCloudValidationException(String.format(MAIN_CLASS_NOT_FOUND, finalJar));
-        }
-        final String library = manifestAttributes.getValue(SPRING_BOOT_LIB);
-        if (StringUtils.isEmpty(library)) {
+    private void printPublicUrl(final SpringCloudApp app) {
+        if (!app.entity().isPublic()) {
             return;
         }
-        final Map<String, String> dependencies = getSpringAppDependencies(jarFile.entries(), library);
-        if (!dependencies.containsKey(SPRING_BOOT_AUTOCONFIGURE)) {
-            throw new SpringCloudValidationException(String.format(NOT_SPRING_BOOT_Artifact, finalJar));
+        log.info("Getting public url of app({})...", app.name());
+        String publicUrl = app.entity().getApplicationUrl();
+        if (StringUtils.isEmpty(publicUrl)) {
+            publicUrl = RxUtils.pollUntil(() -> app.refresh().entity().getApplicationUrl(), StringUtils::isNotBlank, GET_URL_TIMEOUT);
         }
-        final String springVersion = dependencies.get(SPRING_BOOT_AUTOCONFIGURE);
-        final List<String> missingDependencies = new ArrayList<>();
-        final Map<String, String> inCompatibleDependencies = new HashMap<>();
-        for (String artifact : SPRING_ARTIFACTS) {
-            if (!dependencies.containsKey(artifact)) {
-                missingDependencies.add(artifact);
-            } else if (!SpringCloudDependencyManager.isCompatibleVersion(dependencies.get(artifact), springVersion)) {
-                inCompatibleDependencies.put(artifact, dependencies.get(artifact));
-            }
-        }
-        final String dependencyPrompt = getDependenciesValidationPrompt(
-                missingDependencies, inCompatibleDependencies, springVersion);
-        if (!inCompatibleDependencies.isEmpty()) {
-            PluginUtil.showWarningNotificationProject(project, AZURE_DEPENDENCIES_WARNING_TITLE, dependencyPrompt);
-        } else if (!missingDependencies.isEmpty()) {
-            PluginUtil.showInfoNotificationProject(project, AZURE_DEPENDENCIES_WARNING_TITLE, dependencyPrompt);
+        if (StringUtils.isEmpty(publicUrl)) {
+            log.warn("Failed to get application url");
+        } else {
+            log.info("Application url: {}", publicUrl);
         }
     }
 
-    private String getDependenciesValidationPrompt(List<String> missingDependencies,
-                                                   Map<String, String> inCompatibleDependencies, String springVersion) {
-        StringBuilder result = new StringBuilder();
-        result.append(DEPENDENCY_WARNING);
-        for (String dependency : missingDependencies) {
-            result.append(String.format("%s : Missing \n", dependency));
-        }
-        for (String dependency : inCompatibleDependencies.keySet()) {
-            result.append(String.format("%s : Incompatible, current version %s, spring boot version %s \n",
-                                        dependency, inCompatibleDependencies.get(dependency), springVersion));
-        }
-        return result.toString();
-    }
-
-    private Map<String, String> getSpringAppDependencies(Enumeration<JarEntry> jarEntryEnumeration,
-                                                         String libraryPath) {
-        final String[] springArtifacts = ArrayUtils.add(SPRING_ARTIFACTS, SPRING_BOOT_AUTOCONFIGURE);
-        final List<JarEntry> jarEntries = Collections.list(jarEntryEnumeration);
-        return jarEntries.stream()
-                         .filter(jarEntry -> StringUtils.startsWith(jarEntry.getName(), libraryPath)
-                                 && StringUtils.equalsIgnoreCase(FilenameUtils.getExtension(jarEntry.getName()), JAR))
-                         .map(jarEntry -> {
-                             String fileName = FilenameUtils.getBaseName(jarEntry.getName());
-                             final int i = StringUtils.lastIndexOf(fileName, "-");
-                             return (i > 0 && i < fileName.length() - 1) ?
-                                    new String[]{
-                                            StringUtils.substring(fileName, 0, i),
-                                            StringUtils.substring(fileName, i + 1)
-                                    } :
-                                    new String[]{fileName, ""};
-                         })
-                         .filter(entry -> ArrayUtils.contains(springArtifacts, entry[0]))
-                         .collect(Collectors.toMap(entry -> entry[0], entry -> entry[1]));
-    }
-
-    private void getUrl(String appId, RunProcessHandler processHandler) {
-        try {
-            String url = getResourceWithTimeout(() -> AzureSpringCloudMvpModel.getAppById(appId).properties().url(),
-                                                StringUtils::isNotEmpty, GET_URL_TIMEOUT, TimeUnit.SECONDS);
-            setText(processHandler, "URL: " + url);
-        } catch (Exception e) {
-            setText(processHandler, "Failed to get the public url, you may get the data in portal later.");
-        }
-    }
-
-    private DeploymentResourceInner getDeploymentStatus(String appId, RunProcessHandler processHandler) {
-        try {
-            DeploymentResourceInner deploymentResourceInner =
-                    getResourceWithTimeout(() -> AzureSpringCloudMvpModel.getActiveDeploymentForApp(appId),
-                                           this::isDeploymentDone, GET_STATUS_TIMEOUT, TimeUnit.SECONDS);
-            setText(processHandler,
-                    "Deployment done with status " + deploymentResourceInner.properties().status().toString());
-            return deploymentResourceInner;
-        } catch (Exception e) {
-            setText(processHandler, "Failed to get the deployment status, you may get the status in portal later.");
-            return null;
-        }
-    }
-
-    @FunctionalInterface
-    private interface SupplierWithIOException<T> {
-        T get() throws IOException;
-    }
-
-    private static <T> T getResourceWithTimeout(SupplierWithIOException<T> consumer, Predicate<T> predicate,
-                                         int timeout, TimeUnit timeUnit)
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final ExecutorService executor = Executors.newSingleThreadExecutor();
-        final Future<T> future = executor.submit(() -> {
-            try {
-                T result = null;
-                do {
-                    result = consumer.get();
-                } while (!predicate.test(result));
-                return result;
-            } catch (IOException e) {
-                return null;
-            }
-
-        });
-        return future.get(timeout, timeUnit);
-    }
-
-    // todo: move this logic copied from maven plugin to tools-common
-    private boolean isDeploymentDone(DeploymentResourceInner deploymentResource) {
-        final DeploymentResourceStatus deploymentResourceStatus = deploymentResource.properties().status();
-        if (DEPLOYMENT_PROCESSING_STATUS.contains(deploymentResourceStatus)) {
-            return false;
-        }
-        final String finalDiscoverStatus = BooleanUtils.isTrue(deploymentResource.properties().active()) ?
-                                           "UP" : "OUT_OF_SERVICE";
-        final List<DeploymentInstance> instanceList = deploymentResource.properties().instances();
-        final boolean isInstanceDeployed = !instanceList.stream()
-                .anyMatch(instance -> StringUtils.equalsIgnoreCase(instance.status(), "waiting") ||
-                        StringUtils.equalsIgnoreCase(instance.status(), "pending"));
-        final boolean isInstanceDiscovered =
-                instanceList.stream()
-                            .allMatch(instance -> StringUtils.equalsIgnoreCase(
-                                    instance.discoveryStatus(), finalDiscoverStatus));
-        return isInstanceDeployed && isInstanceDiscovered;
+    private AppPlatformManager getAppPlatformManager() {
+        return AuthMethodManager.getInstance().getAzureSpringCloudClient(this.config.getSubscriptionId());
     }
 }

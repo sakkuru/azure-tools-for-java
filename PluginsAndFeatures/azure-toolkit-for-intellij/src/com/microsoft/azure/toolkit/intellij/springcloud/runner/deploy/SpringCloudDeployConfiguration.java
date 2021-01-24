@@ -36,6 +36,7 @@ import com.intellij.openapi.project.Project;
 import com.microsoft.azure.management.appplatform.v2020_07_01.ProvisioningState;
 import com.microsoft.azure.management.appplatform.v2020_07_01.RuntimeVersion;
 import com.microsoft.azure.management.appplatform.v2020_07_01.ServiceResource;
+import com.microsoft.azure.toolkit.lib.springcloud.config.SpringCloudDeploymentConfig;
 import com.microsoft.azuretools.core.mvp.model.AzureMvpModel;
 import com.microsoft.azuretools.core.mvp.model.springcloud.AzureSpringCloudMvpModel;
 import com.microsoft.azuretools.core.mvp.model.springcloud.SpringCloudIdHelper;
@@ -261,4 +262,11 @@ public class SpringCloudDeployConfiguration extends AzureRunConfigurationBase<Sp
         }
     }
 
+    public SpringCloudDeploymentConfig getDeployment() {
+        return null;
+    }
+
+    public String getActiveDeploymentName() {
+        return null;
+    }
 }
