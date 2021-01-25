@@ -43,7 +43,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
-public class SpringCloudArtifactUtils {
+public class SpringCloudUtils {
     private static final String[] SPRING_ARTIFACTS = {
             "spring-boot-starter-actuator",
             "spring-cloud-config-client",

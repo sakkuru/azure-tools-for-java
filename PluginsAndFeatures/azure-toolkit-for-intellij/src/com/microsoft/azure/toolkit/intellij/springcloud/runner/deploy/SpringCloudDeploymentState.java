@@ -25,13 +25,11 @@ package com.microsoft.azure.toolkit.intellij.springcloud.runner.deploy;
 import com.intellij.openapi.project.Project;
 import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.AppPlatformManager;
 import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.AppResourceInner;
+import com.microsoft.azure.management.appplatform.v2020_07_01.implementation.DeploymentResourceInner;
 import com.microsoft.azure.toolkit.intellij.common.AzureRunProfileState;
-import com.microsoft.azure.toolkit.intellij.springcloud.SpringCloudArtifactUtils;
+import com.microsoft.azure.toolkit.intellij.springcloud.SpringCloudUtils;
 import com.microsoft.azure.toolkit.lib.common.task.AzureTask;
-import com.microsoft.azure.toolkit.lib.springcloud.AzureSpringCloud;
-import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudApp;
-import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudCluster;
-import com.microsoft.azure.toolkit.lib.springcloud.SpringCloudDeployment;
+import com.microsoft.azure.toolkit.lib.springcloud.*;
 import com.microsoft.azure.toolkit.lib.springcloud.config.SpringCloudDeploymentConfig;
 import com.microsoft.azure.toolkit.lib.springcloud.model.ScaleSettings;
 import com.microsoft.azure.tools.utils.RxUtils;
@@ -41,16 +39,17 @@ import com.microsoft.azuretools.telemetrywrapper.Operation;
 import com.microsoft.azuretools.telemetrywrapper.TelemetryManager;
 import com.microsoft.intellij.RunProcessHandler;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.springcloud.SpringCloudStateManager;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.microsoft.azure.toolkit.lib.springcloud.AzureSpringCloudConfigUtils.DEFAULT_DEPLOYMENT_NAME;
 
@@ -74,7 +73,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
     public AppResourceInner executeSteps(@NotNull RunProcessHandler processHandler, @NotNull Map<String, String> telemetryMap) throws Exception {
         // prepare the jar to be deployed
         updateTelemetryMap(telemetryMap);
-        final File artifact = SpringCloudArtifactUtils.getArtifact(config.getArtifactIdentifier(), project);
+        final File artifact = SpringCloudUtils.getArtifact(config.getArtifactIdentifier(), project);
         final boolean enableDisk = config.getDeployment() != null && config.getDeployment().isEnablePersistentStorage();
         final String clusterName = config.getClusterName();
         final String clusterId = config.getClusterId();
@@ -85,11 +84,11 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         final String jvmOptions = deploymentConfig.getJvmOptions();
         final ScaleSettings scaleSettings = deploymentConfig.getScaleSettings();
         final String runtimeVersion = deploymentConfig.getJavaVersion();
-        final String deploymentName = Optional.ofNullable(deploymentConfig.getDeploymentName()).orElse(DEFAULT_DEPLOYMENT_NAME);
 
         final AzureSpringCloud az = AzureSpringCloud.az(this.getAppPlatformManager());
         final SpringCloudCluster cluster = az.cluster(clusterName);
         final SpringCloudApp app = cluster.app(appName);
+        final String deploymentName = StringUtils.firstNonBlank(app.getActiveDeploymentName(), DEFAULT_DEPLOYMENT_NAME);
         final SpringCloudDeployment deployment = app.deployment(deploymentName);
 
         final boolean toCreateApp = !app.exists();
@@ -99,7 +98,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         if (toCreateApp) {
             log.info("Creating app({})...", appName);
             app.create().commit();
-            SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), null);
+            SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, getInner(app.entity()), null);
             log.info("Successfully created the app.");
         }
         log.info("Uploading artifact({}) to Azure...", artifact.getPath());
@@ -116,10 +115,10 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         log.info(toCreateDeployment ? "Creating deployment({})..." : "Updating deployment({})...", deploymentName);
         deploymentModifier.commit();
         log.info(toCreateDeployment ? "Successfully created the deployment" : "Successfully updated the deployment");
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), deployment.entity().getInner());
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, getInner(app.entity()), getInner(deployment.entity()));
 
         final SpringCloudApp.Updater appUpdater = app.update()
-            .activate(Optional.ofNullable(config.getActiveDeploymentName()).orElse(deploymentName))
+            .activate(StringUtils.firstNonBlank(app.getActiveDeploymentName(), deploymentName))
             .setPublic(config.isPublic())
             .enablePersistentDisk(enableDisk);
         if (!appUpdater.isSkippable()) {
@@ -129,12 +128,12 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
             log.warn(UPDATE_APP_WARNING);
         }
 
-        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, app.entity().getInner(), deployment.entity().getInner());
+        SpringCloudStateManager.INSTANCE.notifySpringAppUpdate(clusterId, getInner(app.entity()), getInner(deployment.entity()));
         if (!deployment.waitUntilReady(GET_STATUS_TIMEOUT)) {
             log.warn(GET_DEPLOYMENT_STATUS_TIMEOUT);
         }
         printPublicUrl(app);
-        return app.entity().getInner();
+        return getInner(app.entity());
     }
 
     @Override
@@ -172,6 +171,20 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
         } else {
             log.info("Application url: {}", publicUrl);
         }
+    }
+
+    @SneakyThrows
+    private static AppResourceInner getInner(final SpringCloudAppEntity app) {
+        final Field inner = SpringCloudAppEntity.class.getDeclaredField("inner");
+        inner.setAccessible(true);
+        return (AppResourceInner) inner.get(app);
+    }
+
+    @SneakyThrows
+    private static DeploymentResourceInner getInner(final SpringCloudDeploymentEntity deployment) {
+        final Field inner = SpringCloudDeploymentEntity.class.getDeclaredField("inner");
+        inner.setAccessible(true);
+        return (DeploymentResourceInner) inner.get(deployment);
     }
 
     private AppPlatformManager getAppPlatformManager() {
