@@ -32,6 +32,7 @@ import org.jtwig.functions.FunctionRequest;
 import org.jtwig.functions.SimpleJtwigFunction;
 
 import java.lang.reflect.Method;
+import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +51,7 @@ public class AzureOperationUtils {
         final String messageTemplate = annotation.value();
         final String[] parameters = annotation.params();
         final String[] params = Arrays.stream(parameters).map(expression -> interpretExpression(expression, ref)).toArray(String[]::new);
-        return String.format(messageTemplate, (Object[]) params);
+        return MessageFormat.format(String.format(messageTemplate, (Object[]) params), params);
     }
 
     private static String interpretExpression(String expression, AzureOperationRef ref) {
