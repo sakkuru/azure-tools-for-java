@@ -71,6 +71,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
     @Nullable
     @Override
     public AppResourceInner executeSteps(@NotNull RunProcessHandler processHandler, @NotNull Map<String, String> telemetryMap) throws Exception {
+        // TODO: https://dev.azure.com/mseng/VSJava/_workitems/edit/1812811
         // prepare the jar to be deployed
         updateTelemetryMap(telemetryMap);
         final File artifact = SpringCloudUtils.getArtifact(config.getArtifactIdentifier(), project);
@@ -136,7 +137,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
             DefaultLoader.getUIHelper().showErrorNotification(NOTIFICATION_TITLE, GET_DEPLOYMENT_STATUS_TIMEOUT);
         }
         printPublicUrl(app, processHandler);
-        return getInner(app.entity());
+        return getInner(app.entity()); // TODO: https://dev.azure.com/mseng/VSJava/_workitems/edit/1812811
     }
 
     @Override
@@ -178,6 +179,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
 
     @SneakyThrows
     private static AppResourceInner getInner(final SpringCloudAppEntity app) {
+        // TODO: https://dev.azure.com/mseng/VSJava/_workitems/edit/1812809
         final Field inner = SpringCloudAppEntity.class.getDeclaredField("inner");
         inner.setAccessible(true);
         return (AppResourceInner) inner.get(app);
@@ -185,6 +187,7 @@ public class SpringCloudDeploymentState extends AzureRunProfileState<AppResource
 
     @SneakyThrows
     private static DeploymentResourceInner getInner(final SpringCloudDeploymentEntity deployment) {
+        // TODO: https://dev.azure.com/mseng/VSJava/_workitems/edit/1812809
         final Field inner = SpringCloudDeploymentEntity.class.getDeclaredField("inner");
         inner.setAccessible(true);
         return (DeploymentResourceInner) inner.get(deployment);
